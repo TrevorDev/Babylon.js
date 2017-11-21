@@ -85,7 +85,16 @@ module BABYLON {
 
             if (!this._scene.activeCamera || isNaN(this._scene.activeCamera.position.x)) {
                 this._position = new BABYLON.Vector3(0, 2, 0);
-                this._deviceOrientationCamera = new BABYLON.DeviceOrientationCamera("deviceOrientationVRHelper", new BABYLON.Vector3(0, 2, 0), scene);
+                this._deviceOrientationCamera = new BABYLON.DeviceOrientationCamera("deviceOrientationVRHelper", this._position, scene);
+                if(navigator.getVRDisplays){
+                    navigator.getVRDisplays().then((devices:any)=>{
+                        if(devices[0] && devices[0].stageParameters){
+                            var sittingToStandingTransform = new BABYLON.Matrix();
+                            sittingToStandingTransform.m = devices[0].stageParameters.sittingToStandingTransform;
+                            this.position = Vector3.TransformCoordinates(new BABYLON.Vector3(0, 0, 0), sittingToStandingTransform)
+                        }
+                    })
+                }
             }
             else {
                 this._position = this._scene.activeCamera.position.clone();
