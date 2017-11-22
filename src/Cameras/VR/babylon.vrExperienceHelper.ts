@@ -97,6 +97,19 @@ module BABYLON {
             else {
                 this._position = this._scene.activeCamera.position.clone();
                 this._deviceOrientationCamera = new BABYLON.DeviceOrientationCamera("deviceOrientationVRHelper", this._position, scene);
+
+                // Set rotation from previous camera
+                if(this._scene.activeCamera instanceof TargetCamera){
+                    var targetCamera = this._scene.activeCamera;
+                    if(targetCamera.rotationQuaternion && targetCamera.rotation){
+                        this._deviceOrientationCamera.rotationQuaternion.copyFrom(targetCamera.rotationQuaternion);
+                        this._deviceOrientationCamera.rotation = targetCamera.rotation.clone();
+                    }else if(targetCamera.rotation){
+                        this._deviceOrientationCamera.rotationQuaternion.copyFrom(Quaternion.RotationYawPitchRoll(targetCamera.rotation.y, targetCamera.rotation.x, targetCamera.rotation.z));
+                        this._deviceOrientationCamera.rotation = targetCamera.rotation.clone();
+                    }
+                }
+                
                 this._deviceOrientationCamera.minZ = this._scene.activeCamera.minZ;
                 this._deviceOrientationCamera.maxZ = this._scene.activeCamera.maxZ;
             }
