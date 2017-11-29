@@ -783,6 +783,7 @@ module BABYLON {
         
             this._scene.beginAnimation(this._postProcessMove, 0, 6, false, 1, () => {
                 this._postProcessMove.imageProcessingConfiguration.vignetteEnabled = false;
+                this.webVRCamera.rotateWithUpdate(this.webVRCamera.rotationQuaternion)
             });
             this._scene.beginAnimation(this.currentVRCamera, 0, 6, false, 1);
         }

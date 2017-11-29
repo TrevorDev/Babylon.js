@@ -63,6 +63,12 @@ module BABYLON {
 
         private _lightOnControllers: BABYLON.HemisphericLight;
 
+        public _currentGlobalHMDPos = Vector3.Zero()
+        public _currentOffsetAtLastRotate = Vector3.Zero()
+        public _globalHMDPosAtLastRotate = Vector3.Zero()
+
+        
+
         constructor(name: string, position: Vector3, scene: Scene, private webVROptions: WebVROptions = {}) {
             super(name, position, scene);
 
@@ -182,7 +188,7 @@ module BABYLON {
 
         public getForwardRay(length = 100): Ray {
             if (this.leftCamera) {
-                return super.getForwardRay(length, this.leftCamera.getWorldMatrix(), this.position.add(this.devicePosition)); // Need the actual rendered camera
+                return super.getForwardRay(length, this.leftCamera.getWorldMatrix(), this.position.add(this._currentGlobalHMDPos)); // Need the actual rendered camera
             }
             else {
                 return super.getForwardRay(length);
@@ -213,8 +219,26 @@ module BABYLON {
                     if (this.getScene().useRightHandedSystem) {
                         this.devicePosition.z *= -1;
                     }
+
+                    //offset from when we last rotated
+                    var currentOffset = this.devicePosition.subtract(this._currentOffsetAtLastRotate)// = (this.devicePosition-)
+                    
+                    //rotate back to world space
+                    var mat = new BABYLON.Matrix()
+                    this.rotationQuaternion.toRotationMatrix(mat)
+                    var rotDevPos = Vector3.TransformCoordinates(currentOffset, mat.clone());
+
+                    //add back to get world space hmd position
+                    this._currentGlobalHMDPos = rotDevPos.add(this._globalHMDPosAtLastRotate) 
                 }
             }
+        }
+
+        public rotateWithUpdate(q:Quaternion){
+            this._globalHMDPosAtLastRotate = this._currentGlobalHMDPos.clone()
+            this._currentOffsetAtLastRotate = this.devicePosition.clone()
+            this.rotationQuaternion = q.clone()
+            console.log(this._currentGlobalHMDPos)
         }
 
         /**
@@ -268,11 +292,36 @@ module BABYLON {
             camRight.position.copyFrom(this.devicePosition);
         }
 
+        // public getRotationCorrectedDevicePosition(){
+        //     return this.position
+        // }
+        
+        public _getViewMatrix(): Matrix {
+            // this._updateCameraRotationMatrix();
+
+            // Vector3.TransformCoordinatesToRef(this._referencePoint, this._cameraRotationMatrix, this._transformedReferencePoint);
+
+            // var hmdPos:Vector3 = this.position.add(this.devicePosition)
+            // hmdPos.addToRef(this._transformedReferencePoint, this._currentTarget);
+
+
+            // if (this.getScene().useRightHandedSystem) {
+            //     Matrix.LookAtRHToRef(hmdPos, this._currentTarget, this.upVector, this._viewMatrix);
+            // } else {
+            //     Matrix.LookAtLHToRef(hmdPos, this._currentTarget, this.upVector, this._viewMatrix);
+            // }
+
+            // return this._viewMatrix;
+            return Matrix.Identity();
+        }
+
         /**
          * This function is called by the two RIG cameras.
          * 'this' is the left or right camera (and NOT (!!!) the WebVRFreeCamera instance)
          */
         protected _getWebVRViewMatrix(): Matrix {
+            let parentCamera: WebVRFreeCamera = this._cameraRigParams["parentCamera"];
+
             //WebVR 1.1
             var viewArray = this._cameraRigParams["left"] ? this._cameraRigParams["frameData"].leftViewMatrix : this._cameraRigParams["frameData"].rightViewMatrix;
 
@@ -284,27 +333,58 @@ module BABYLON {
                 });
             }
 
-            // update the camera rotation matrix
-            this._webvrViewMatrix.getRotationMatrixToRef(this._cameraRotationMatrix);
-            Vector3.TransformCoordinatesToRef(this._referencePoint, this._cameraRotationMatrix, this._transformedReferencePoint);
+            // // update the camera rotation matrix
+            // this._webvrViewMatrix.getRotationMatrixToRef(this._cameraRotationMatrix);
+            // Vector3.TransformCoordinatesToRef(this._referencePoint, this._cameraRotationMatrix, this._transformedReferencePoint);
 
-            // Computing target and final matrix
-            this.position.addToRef(this._transformedReferencePoint, this._currentTarget);
+            // // Computing target and final matrix
+            // this.position.addToRef(this._transformedReferencePoint, this._currentTarget);
 
-            let parentCamera: WebVRFreeCamera = this._cameraRigParams["parentCamera"];
+            
 
             // should the view matrix be updated with scale and position offset?
-            if (parentCamera.deviceScaleFactor !== 1) {
+            //if (parentCamera.deviceScaleFactor !== 1) {
                 this._webvrViewMatrix.invert();
+                
+                //decompose
+                var scale = Vector3.Zero();
+                var rot = Quaternion.Zero();
+                var trans = Vector3.Zero();
+                this._webvrViewMatrix.decompose(scale, rot, trans)
+
+                
+
+                //get rotation as a matrix
+                var mat = new BABYLON.Matrix()
+                parentCamera.rotationQuaternion.toRotationMatrix(mat)
+
+                //get device position relative to rotation
+                //var rotDevPos = Vector3.TransformCoordinates(parentCamera.devicePosition, mat.clone());
+
+                //rotate eye around center of headset
+                var transForEye = trans.subtract(parentCamera.devicePosition)
+                transForEye = Vector3.TransformCoordinates(transForEye, mat);
+
+                //set translation
+                trans.copyFrom(parentCamera._currentGlobalHMDPos.add(transForEye))
+
+                //Add position
+                trans.addInPlace(parentCamera.position)
+                
+                //rotate this position
+                rot = parentCamera.rotationQuaternion.multiply(rot)
+                this._webvrViewMatrix = Matrix.Compose(scale, rot, trans)
+
                 // scale the position, if set
                 if (parentCamera.deviceScaleFactor) {
                     this._webvrViewMatrix.m[12] *= parentCamera.deviceScaleFactor;
                     this._webvrViewMatrix.m[13] *= parentCamera.deviceScaleFactor;
                     this._webvrViewMatrix.m[14] *= parentCamera.deviceScaleFactor;
                 }
+                
 
                 this._webvrViewMatrix.invert();
-            }
+            //}
 
             return this._webvrViewMatrix;
         }
