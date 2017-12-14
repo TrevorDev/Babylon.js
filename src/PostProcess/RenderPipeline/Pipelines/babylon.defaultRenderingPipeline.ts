@@ -9,13 +9,15 @@
         readonly CopyBackPostProcessId: string = "CopyBackPostProcessEffect";  
         readonly ImageProcessingPostProcessId: string = "ImageProcessingPostProcessEffect";  
         readonly FxaaPostProcessId: string = "FxaaPostProcessEffect";           
+        readonly dofPostProcessId: string = "DofPostProcessEffect";           
         readonly FinalMergePostProcessId: string = "FinalMergePostProcessEffect";
 
         // Post-processes
 		public pass: BABYLON.PassPostProcess;
 		public highlights: BABYLON.HighlightsPostProcess;
 		public blurX: BABYLON.BlurPostProcess;
-		public blurY: BABYLON.BlurPostProcess;
+        public blurY: BABYLON.BlurPostProcess;
+        public dof: DepthOfFieldPostProcess;
 		public copyBack: BABYLON.PassPostProcess;
         public fxaa: FxaaPostProcess;
         public imageProcessing: ImageProcessingPostProcess;
@@ -26,6 +28,7 @@
 
         // Values       
         private _bloomEnabled: boolean = false;
+        private _dofEnabled: boolean = false;
         private _fxaaEnabled: boolean = false;
         private _imageProcessingEnabled: boolean = true;
         private _defaultPipelineTextureType: number;
@@ -90,7 +93,21 @@
         @serialize()
         public get bloomEnabled(): boolean {
             return this._bloomEnabled;
-        }        
+        }   
+        
+        @serialize()
+        public get dofEnabled(): boolean {
+            return this._dofEnabled;
+        }   
+        
+        public set dofEnabled(enabled: boolean) {
+            if (this._dofEnabled === enabled) {
+                return;
+            }
+            this._dofEnabled = enabled;
+
+            this._buildPipeline();
+        } 
 
         public set fxaaEnabled(enabled: boolean) {
             if (this._fxaaEnabled === enabled) {
@@ -217,7 +234,13 @@
 					this.copyBack.alphaMode = BABYLON.Engine.ALPHA_SCREENMODE;
 				}
 				this.copyBack.autoClear = false;
-			}
+            }
+            
+            if(this.dofEnabled){
+                // Todo can I set the camera like this here?
+                this.dof = new BABYLON.DepthOfFieldPostProcess("dof", this._scene.enableDepthRenderer().getDepthMap(), 1, this._scene.activeCamera, BABYLON.Texture.BILINEAR_SAMPLINGMODE, engine, true, this._defaultPipelineTextureType)
+                this.addEffect(new PostProcessRenderEffect(engine, this.dofPostProcessId, () => { return this.dof; }, true));  
+            }
 
             if (this._imageProcessingEnabled) {
                 this.imageProcessing = new BABYLON.ImageProcessingPostProcess("imageProcessing",  1.0, null, BABYLON.Texture.BILINEAR_SAMPLINGMODE, engine, false, this._defaultPipelineTextureType);
