@@ -14,19 +14,21 @@
     export interface ISceneLoaderPlugin {
         name: string;
         extensions: string | ISceneLoaderPluginExtensions;
-        importMesh: (meshesNames: any, scene: Scene, data: any, rootUrl: string, meshes: AbstractMesh[], particleSystems: ParticleSystem[], skeletons: Skeleton[], onError?: (message: string, exception?: any) => void) => boolean;
-        load: (scene: Scene, data: string, rootUrl: string, onError?: (message: string, exception?: any) => void) => boolean;
+        importMesh?: (meshesNames: any, scene: Scene, data: any, rootUrl: string, meshes: AbstractMesh[], particleSystems: ParticleSystem[], skeletons: Skeleton[], onError?: (message: string, exception?: any) => void) => boolean;
+        load?: (scene: Scene, data: string, rootUrl: string, onError?: (message: string, exception?: any) => void) => boolean;
         canDirectLoad?: (data: string) => boolean;
         rewriteRootURL?: (rootUrl: string, responseURL?: string) => string;
+        loadAssets: any;
     }
 
     export interface ISceneLoaderPluginAsync {
         name: string;
         extensions: string | ISceneLoaderPluginExtensions;
-        importMeshAsync: (meshesNames: any, scene: Scene, data: any, rootUrl: string, onSuccess?: (meshes: AbstractMesh[], particleSystems: ParticleSystem[], skeletons: Skeleton[]) => void, onProgress?: (event: ProgressEvent) => void, onError?: (message: string, exception?: any) => void) => void;
-        loadAsync: (scene: Scene, data: string, rootUrl: string, onSuccess?: () => void, onProgress?: (event: ProgressEvent) => void, onError?: (message: string, exception?: any) => void) => void;
+        importMeshAsync?: (meshesNames: any, scene: Scene, data: any, rootUrl: string, onSuccess?: (meshes: AbstractMesh[], particleSystems: ParticleSystem[], skeletons: Skeleton[]) => void, onProgress?: (event: ProgressEvent) => void, onError?: (message: string, exception?: any) => void) => void;
+        loadAsync?: (scene: Scene, data: string, rootUrl: string, onSuccess?: () => void, onProgress?: (event: ProgressEvent) => void, onError?: (message: string, exception?: any) => void) => void;
         canDirectLoad?: (data: string) => boolean;
         rewriteRootURL?: (rootUrl: string, responseURL?: string) => string;
+        loadAssetsAsync: any;
     }
 
     interface IRegisteredPlugin {
@@ -297,24 +299,24 @@
                 }
 
                 if ((<any>plugin).importMesh) {
-                    var syncedPlugin = <ISceneLoaderPlugin>plugin;
+                    //var syncedPlugin = <ISceneLoaderPlugin>plugin;
                     var meshes = new Array<AbstractMesh>();
                     var particleSystems = new Array<ParticleSystem>();
                     var skeletons = new Array<Skeleton>();
 
-                    if (!syncedPlugin.importMesh(meshNames, scene, data, rootUrl, meshes, particleSystems, skeletons, errorHandler)) {
-                        return;
-                    }
+                    // if (!syncedPlugin.importMesh(meshNames, scene, data, rootUrl, meshes, particleSystems, skeletons, errorHandler)) {
+                    //     return;
+                    // }
 
                     scene.loadingPluginName = plugin.name;
                     successHandler(meshes, particleSystems, skeletons);
                 }
                 else {
-                    var asyncedPlugin = <ISceneLoaderPluginAsync>plugin;
-                    asyncedPlugin.importMeshAsync(meshNames, scene, data, rootUrl, (meshes, particleSystems, skeletons) => {
-                        scene.loadingPluginName = plugin.name;
-                        successHandler(meshes, particleSystems, skeletons);
-                    }, progressHandler, errorHandler);
+                    // var asyncedPlugin = <ISceneLoaderPluginAsync>plugin;
+                    // asyncedPlugin.importMeshAsync(meshNames, scene, data, rootUrl, (meshes, particleSystems, skeletons) => {
+                    //     scene.loadingPluginName = plugin.name;
+                    //     successHandler(meshes, particleSystems, skeletons);
+                    // }, progressHandler, errorHandler);
                 }
             }, progressHandler, errorHandler, pluginExtension);
         }
@@ -330,6 +332,76 @@
         */
         public static Load(rootUrl: string, sceneFilename: any, engine: Engine, onSuccess: Nullable<(scene: Scene) => void> = null, onProgress: Nullable<(event: ProgressEvent) => void> = null, onError: Nullable<(scene: Scene, message: string, exception?: any) => void> = null, pluginExtension: Nullable<string> = null): Nullable<ISceneLoaderPlugin | ISceneLoaderPluginAsync> {
             return SceneLoader.Append(rootUrl, sceneFilename, new Scene(engine), onSuccess, onProgress, onError, pluginExtension);
+        }
+
+        public static LoadSceneAssetContainer(rootUrl: string, sceneFilename: any, scene: Scene, onSuccess: (assets: SceneAssetContainer) => void, onProgress: Nullable<(event: ProgressEvent) => void> = null, onError: Nullable<(scene: Scene, message: string, exception?: any) => void> = null, pluginExtension: Nullable<string> = null): Nullable<ISceneLoaderPlugin | ISceneLoaderPluginAsync> {
+            if (sceneFilename.substr && sceneFilename.substr(0, 1) === "/") {
+                Tools.Error("Wrong sceneFilename parameter");
+                return null;
+            }
+
+            if (SceneLoader.ShowLoadingScreen) {
+                scene.getEngine().displayLoadingUI();
+            }
+
+            var loadingToken = {};
+            scene._addPendingData(loadingToken);
+
+            var errorHandler = (message: Nullable<string>, exception?: any) => {
+                let errorMessage = "Unable to load from " + rootUrl + sceneFilename + (message ? ": " + message : "");
+                if (onError) {
+                    onError(scene, errorMessage, exception);
+                } else {
+                    Tools.Error(errorMessage);
+                    // should the exception be thrown?
+                }
+                scene._removePendingData(loadingToken);
+                scene.getEngine().hideLoadingUI();
+            };
+
+            var progressHandler = onProgress ? (event: ProgressEvent) => {
+                try {
+                    onProgress(event);
+                }
+                catch (e) {
+                    errorHandler("Error in onProgress callback", e);
+                }
+            } : undefined;
+
+            var successHandler = (container: SceneAssetContainer) => {
+                if (onSuccess) {
+                    try {
+                        onSuccess(container);
+                    }
+                    catch (e) {
+                        errorHandler("Error in onSuccess callback", e);
+                    }
+                }
+
+                scene._removePendingData(loadingToken);
+            };
+
+            return SceneLoader._loadData(rootUrl, sceneFilename, scene, (plugin, data, responseURL) => {
+                if ((<any>plugin).loadAssets) {
+                    var syncedPlugin = <ISceneLoaderPlugin>plugin;
+                    var container = syncedPlugin.loadAssets(scene, data, rootUrl, errorHandler)
+
+                    scene.loadingPluginName = plugin.name;
+                    successHandler(container);
+                } else {
+                    var asyncedPlugin = <ISceneLoaderPluginAsync>plugin;
+                    var container = asyncedPlugin.loadAssetsAsync(scene, data, rootUrl, () => {
+                        scene.loadingPluginName = plugin.name;
+                        successHandler(container);
+                    }, progressHandler, errorHandler);
+                }
+
+                if (SceneLoader.ShowLoadingScreen) {
+                    scene.executeWhenReady(() => {
+                        scene.getEngine().hideLoadingUI();
+                    });
+                }
+            }, progressHandler, errorHandler, pluginExtension);
         }
 
         /**
@@ -375,41 +447,41 @@
                 }
             } : undefined;
 
-            var successHandler = () => {
-                if (onSuccess) {
-                    try {
-                        onSuccess(scene);
-                    }
-                    catch (e) {
-                        errorHandler("Error in onSuccess callback", e);
-                    }
-                }
+            // var successHandler = () => {
+            //     if (onSuccess) {
+            //         try {
+            //             onSuccess(scene);
+            //         }
+            //         catch (e) {
+            //             errorHandler("Error in onSuccess callback", e);
+            //         }
+            //     }
 
-                scene._removePendingData(loadingToken);
-            };
+            //     scene._removePendingData(loadingToken);
+            // };
 
             return SceneLoader._loadData(rootUrl, sceneFilename, scene, (plugin, data, responseURL) => {
-                if ((<any>plugin).load) {
-                    var syncedPlugin = <ISceneLoaderPlugin>plugin;
-                    if (!syncedPlugin.load(scene, data, rootUrl, errorHandler)) {
-                        return;
-                    }
+                // if ((<any>plugin).load) {
+                //     var syncedPlugin = <ISceneLoaderPlugin>plugin;
+                //     if (!syncedPlugin.load(scene, data, rootUrl, errorHandler)) {
+                //         return;
+                //     }
 
-                    scene.loadingPluginName = plugin.name;
-                    successHandler();
-                } else {
-                    var asyncedPlugin = <ISceneLoaderPluginAsync>plugin;
-                    asyncedPlugin.loadAsync(scene, data, rootUrl, () => {
-                        scene.loadingPluginName = plugin.name;
-                        successHandler();
-                    }, progressHandler, errorHandler);
-                }
+                //     scene.loadingPluginName = plugin.name;
+                //     successHandler();
+                // } else {
+                //     var asyncedPlugin = <ISceneLoaderPluginAsync>plugin;
+                //     asyncedPlugin.loadAsync(scene, data, rootUrl, () => {
+                //         scene.loadingPluginName = plugin.name;
+                //         successHandler();
+                //     }, progressHandler, errorHandler);
+                // }
 
-                if (SceneLoader.ShowLoadingScreen) {
-                    scene.executeWhenReady(() => {
-                        scene.getEngine().hideLoadingUI();
-                    });
-                }
+                // if (SceneLoader.ShowLoadingScreen) {
+                //     scene.executeWhenReady(() => {
+                //         scene.getEngine().hideLoadingUI();
+                //     });
+                // }
             }, progressHandler, errorHandler, pluginExtension);
         }
     };

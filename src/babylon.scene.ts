@@ -3,6 +3,72 @@
         dispose(): void;
     }
 
+    export class SceneAssetContainer {
+        public scene: Scene;
+
+        // Config
+        public useDelayedTextureLoading:boolean;
+        public autoClear:boolean;
+        public clearColor:Color4;
+        public ambientColor:Color3;
+        public metadata:any;
+        public activeCameraID:string;
+
+        // Physics
+        public gravity:Vector3;
+        public physicsGravity:Nullable<Vector3>;
+        public physicsPluginName:string;
+        public enablePhysics: boolean;
+        public collisionsEnabled:boolean;
+        public workerCollisions:boolean;
+
+        // Fog
+        public fogMode:number;
+        public fogColor:Color3;
+        public fogStart:number;
+        public fogEnd:number;
+        public fogDensity:number;
+
+        // Animation
+        public autoAnimate:boolean;
+        public autoAnimateFrom:number;
+        public autoAnimateTo:number;
+        public autoAnimateLoop:number;
+        public autoAnimateSpeed:number;
+
+        // Skybox
+        public createDefaultSkybox:boolean;
+        public environmentTexture:BaseTexture;
+        public skyboxBlurLevel:number;
+
+        // Objects
+        public cameras = new Array<Camera>();
+        public lights = new Array<Light>();
+        public meshes = new Array<AbstractMesh>();
+        public skeletons = new Array<Skeleton>();
+        public particleSystems = new Array<ParticleSystem>();
+        public animations = new Array<Animation>();
+        public multiMaterials = new Array<MultiMaterial>();
+        public materials = new Array<Material>();
+        public morphTargetManagers = new Array<MorphTargetManager>();
+        public geometries = new Array<Geometry>();
+        public transformNodes = new Array<TransformNode>();
+        public lensFlareSystems = new Array<LensFlareSystem>();
+        public shadowGenerators = new Array<ShadowGenerator>();
+        public actionManagers = new Array<ActionManager>();
+        
+        constructor(scene:Scene){
+            this.scene = scene;
+        }
+        
+        addAllToScene(){
+
+        }
+        removeAllFromScene(){
+            
+        }
+    }
+
     class ClickInfo {
         private _singleClick = false;
         private _doubleClick = false;
@@ -2229,6 +2295,11 @@
         }
 
         public removeLight(toRemove: Light): number {
+            // Remove from meshes
+            for (var mesh of this.meshes) {
+                mesh._removeLightSource(toRemove);
+            }
+            
             var index = this.lights.indexOf(toRemove);
             if (index !== -1) {
                 // Remove from the scene if mesh found
@@ -2266,6 +2337,13 @@
         public addLight(newLight: Light) {
             this.lights.push(newLight);
             this.sortLightsByPriority();
+
+            // Add light to all meshes
+            // TODO: Should this check if light already exist b4 pushing?
+            for (var mesh of this.meshes) {
+                mesh._lightSources.push(newLight);
+                mesh._resyncLightSources()
+            }
 
             this.onNewLightAddedObservable.notifyObservers(newLight);
         }
