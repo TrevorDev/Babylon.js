@@ -282,56 +282,7 @@
         * @param onError a callback with the scene, a message, and possibly an exception when import fails
         */
         public static ImportMesh(meshNames: any, rootUrl: string, sceneFilename: string, scene: Scene, onSuccess: Nullable<(meshes: AbstractMesh[], particleSystems: ParticleSystem[], skeletons: Skeleton[]) => void> = null, onProgress: Nullable<(event: SceneLoaderProgressEvent) => void> = null, onError: Nullable<(scene: Scene, message: string, exception?: any) => void> = null, pluginExtension: Nullable<string> = null): Nullable<ISceneLoaderPlugin | ISceneLoaderPluginAsync> {
-            if (sceneFilename.substr && sceneFilename.substr(0, 1) === "/") {
-                Tools.Error("Wrong sceneFilename parameter");
-                return null;
-            }
-
-            var loadingToken = {};
-            scene._addPendingData(loadingToken);
-
-            var disposeHandler = () => {
-                scene._removePendingData(loadingToken);
-            };
-
-            var errorHandler = (message: string, exception?: any) => {
-                let errorMessage = "Unable to import meshes from " + rootUrl + sceneFilename + ": " + message;
-
-                if (onError) {
-                    onError(scene, errorMessage, exception);
-                } else {
-                    Tools.Error(errorMessage);
-                    // should the exception be thrown?
-                }
-
-                disposeHandler();
-            };
-
-            var progressHandler = onProgress ? (event: SceneLoaderProgressEvent) => {
-                try {
-                    onProgress(event);
-                }
-                catch (e) {
-                    errorHandler("Error in onProgress callback", e);
-                }
-            } : undefined;
-
-            var successHandler = (meshes: AbstractMesh[], particleSystems: ParticleSystem[], skeletons: Skeleton[]) => {
-                scene.importedMeshesFiles.push(rootUrl + sceneFilename);
-
-                if (onSuccess) {
-                    try {
-                        onSuccess(meshes, particleSystems, skeletons);
-                    }
-                    catch (e) {
-                        errorHandler("Error in onSuccess callback", e);
-                    }
-                }
-
-                scene._removePendingData(loadingToken);
-            };
-
-            return SceneLoader._loadData(rootUrl, sceneFilename, scene, (plugin, data, responseURL) => {
+            return SceneLoader._loadDataWithCheck(rootUrl, sceneFilename, scene, false, (successHandler:Function,progressHandler:(event: SceneLoaderProgressEvent)=>void,errorHandler:(message: Nullable<string>, exception?: any)=>void, plugin: ISceneLoaderPlugin | ISceneLoaderPluginAsync, data: any, responseURL?: string):void=>{
                 if (plugin.rewriteRootURL) {
                     rootUrl = plugin.rewriteRootURL(rootUrl, responseURL);
                 }
@@ -356,7 +307,7 @@
                         successHandler(meshes, particleSystems, skeletons);
                     }, progressHandler, errorHandler);
                 }
-            }, progressHandler, errorHandler, disposeHandler, pluginExtension);
+            }, onSuccess, onProgress, onError, pluginExtension);
         }
 
         /**
@@ -382,12 +333,32 @@
         * @param onError a callback with the scene, a message, and possibly an exception when import fails
         */
         public static Append(rootUrl: string, sceneFilename: any, scene: Scene, onSuccess: Nullable<(scene: Scene) => void> = null, onProgress: Nullable<(event: SceneLoaderProgressEvent) => void> = null, onError: Nullable<(scene: Scene, message: string, exception?: any) => void> = null, pluginExtension: Nullable<string> = null): Nullable<ISceneLoaderPlugin | ISceneLoaderPluginAsync> {
+            return SceneLoader._loadDataWithCheck(rootUrl, sceneFilename, scene, true, (successHandler:Function,progressHandler:(event: SceneLoaderProgressEvent)=>void,errorHandler:(message: Nullable<string>, exception?: any)=>void, plugin: ISceneLoaderPlugin | ISceneLoaderPluginAsync, data: any, responseURL?: string):void=>{
+                if ((<any>plugin).load) {
+                    var syncedPlugin = <ISceneLoaderPlugin>plugin;
+                    if (!syncedPlugin.load(scene, data, rootUrl, errorHandler)) {
+                        return;
+                    }
+
+                    scene.loadingPluginName = plugin.name;
+                    successHandler(scene);
+                } else {
+                    var asyncedPlugin = <ISceneLoaderPluginAsync>plugin;
+                    asyncedPlugin.loadAsync(scene, data, rootUrl, () => {
+                        scene.loadingPluginName = plugin.name;
+                        successHandler(scene);
+                    }, progressHandler, errorHandler);
+                }
+            }, onSuccess, onProgress, onError, pluginExtension)
+        }
+        
+        private static _loadDataWithCheck(rootUrl: string, sceneFilename: any, scene: Scene, showLoadingScreen=false, onComplete: Function, onSuccess: Nullable<Function>, onProgress: Nullable<(event: SceneLoaderProgressEvent) => void> = null, onError: Nullable<(scene: Scene, message: string, exception?: any) => void> = null, pluginExtension: Nullable<string> = null): Nullable<ISceneLoaderPlugin | ISceneLoaderPluginAsync> {
             if (sceneFilename.substr && sceneFilename.substr(0, 1) === "/") {
                 Tools.Error("Wrong sceneFilename parameter");
                 return null;
             }
 
-            if (SceneLoader.ShowLoadingScreen) {
+            if (showLoadingScreen && SceneLoader.ShowLoadingScreen) {
                 scene.getEngine().displayLoadingUI();
             }
 
@@ -396,7 +367,9 @@
 
             var disposeHandler = () => {
                 scene._removePendingData(loadingToken);
-                scene.getEngine().hideLoadingUI();
+                if(showLoadingScreen){
+                    scene.getEngine().hideLoadingUI();
+                }
             };
 
             var errorHandler = (message: Nullable<string>, exception?: any) => {
@@ -420,10 +393,10 @@
                 }
             } : undefined;
 
-            var successHandler = () => {
+            var successHandler = function(){
                 if (onSuccess) {
                     try {
-                        onSuccess(scene);
+                        onSuccess.apply(null, arguments);
                     }
                     catch (e) {
                         errorHandler("Error in onSuccess callback", e);
@@ -434,30 +407,16 @@
             };
 
             return SceneLoader._loadData(rootUrl, sceneFilename, scene, (plugin, data, responseURL) => {
-                if ((<any>plugin).load) {
-                    var syncedPlugin = <ISceneLoaderPlugin>plugin;
-                    if (!syncedPlugin.load(scene, data, rootUrl, errorHandler)) {
-                        return;
-                    }
+                onComplete(successHandler, progressHandler, errorHandler, plugin, data, responseURL);
 
-                    scene.loadingPluginName = plugin.name;
-                    successHandler();
-                } else {
-                    var asyncedPlugin = <ISceneLoaderPluginAsync>plugin;
-                    asyncedPlugin.loadAsync(scene, data, rootUrl, () => {
-                        scene.loadingPluginName = plugin.name;
-                        successHandler();
-                    }, progressHandler, errorHandler);
-                }
-
-                if (SceneLoader.ShowLoadingScreen) {
+                if (showLoadingScreen && SceneLoader.ShowLoadingScreen) {
                     scene.executeWhenReady(() => {
                         scene.getEngine().hideLoadingUI();
                     });
                 }
             }, progressHandler, errorHandler, disposeHandler, pluginExtension);
         }
-        
+
         public static LoadAssetContainer(
             rootUrl: string,
             sceneFilename: any,
@@ -467,53 +426,7 @@
             onError: Nullable<(scene: Scene, message: string, exception?: any) => void> = null,
             pluginExtension: Nullable<string> = null
         ): Nullable<ISceneLoaderPlugin | ISceneLoaderPluginAsync> {
-            if (sceneFilename.substr && sceneFilename.substr(0, 1) === "/") {
-                Tools.Error("Wrong sceneFilename parameter");
-                return null;
-            }
-
-            var loadingToken = {};
-            scene._addPendingData(loadingToken);
-
-            var disposeHandler = () => {
-                scene._removePendingData(loadingToken);
-            };
-
-            var errorHandler = (message: Nullable<string>, exception?: any) => {
-                let errorMessage = "Unable to load assets from " + rootUrl + sceneFilename + (message ? ": " + message : "");
-                if (onError) {
-                    onError(scene, errorMessage, exception);
-                } else {
-                    Tools.Error(errorMessage);
-                    // should the exception be thrown?
-                }
-
-                disposeHandler();
-            };
-
-            var progressHandler = onProgress ? (event: SceneLoaderProgressEvent) => {
-                try {
-                    onProgress(event);
-                }
-                catch (e) {
-                    errorHandler("Error in onProgress callback", e);
-                }
-            } : undefined;
-
-            var successHandler = (assets: AssetContainer) => {
-                if (onSuccess) {
-                    try {
-                        onSuccess(assets);
-                    }
-                    catch (e) {
-                        errorHandler("Error in onSuccess callback", e);
-                    }
-                }
-
-                scene._removePendingData(loadingToken);
-            };
-
-            return SceneLoader._loadData(rootUrl, sceneFilename, scene, (plugin, data, responseURL) => {
+            return SceneLoader._loadDataWithCheck(rootUrl, sceneFilename, scene, false, (successHandler:Function,progressHandler:(event: SceneLoaderProgressEvent)=>void,errorHandler:(message: Nullable<string>, exception?: any)=>void, plugin: ISceneLoaderPlugin | ISceneLoaderPluginAsync, data: any, responseURL?: string):void=>{
                 if ((<any>plugin).loadAssets) {
                     var syncedPlugin = <ISceneLoaderPlugin>plugin;
                     var assetContainer = syncedPlugin.loadAssets(scene, data, rootUrl, errorHandler);
@@ -534,13 +447,7 @@
                 }else{
                     errorHandler("LoadAssetContainer is not supported by this plugin. Plugin did not provide a loadAssets or loadAssetsAsync method.")
                 }
-
-                if (SceneLoader.ShowLoadingScreen) {
-                    scene.executeWhenReady(() => {
-                        scene.getEngine().hideLoadingUI();
-                    });
-                }
-            }, progressHandler, errorHandler, disposeHandler, pluginExtension);
+            }, onSuccess, onProgress, onError, pluginExtension);
         }
     };
 }
