@@ -764,6 +764,17 @@
                 "kernelBlurVertex"
             ]
         },
+        "additionalPostProcess_depthOfField": {
+            "files": [
+                "../../src/PostProcess/babylon.depthOfFieldPostProcess.js"
+            ],
+            "dependUpon": [
+                "postProcesses"
+            ],
+            "shaders": [
+                "depthOfField2.fragment"
+            ]
+        },
         "additionalPostProcess_fxaa": {
             "files": [
                 "../../src/PostProcess/babylon.fxaaPostProcess.js"
@@ -872,7 +883,8 @@
             ],
             "dependUpon": [
                 "renderingPipeline",
-                "additionalPostProcess_fxaa"
+                "additionalPostProcess_fxaa",
+                "additionalPostProcess_depthOfField"
             ]
         },
         "bones": {

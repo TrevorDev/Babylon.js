@@ -9,6 +9,7 @@
         readonly CopyBackPostProcessId: string = "CopyBackPostProcessEffect";
         readonly ImageProcessingPostProcessId: string = "ImageProcessingPostProcessEffect";
         readonly FxaaPostProcessId: string = "FxaaPostProcessEffect";
+        readonly depthOfFieldPostProcessId: string = "DepthOfFieldPostProcessEffect"; 
         readonly FinalMergePostProcessId: string = "FinalMergePostProcessEffect";
 
         // Post-processes
@@ -16,6 +17,7 @@
         public highlights: HighlightsPostProcess;
         public blurX: BlurPostProcess;
         public blurY: BlurPostProcess;
+        public depthOfField: DepthOfFieldPostProcess;
         public copyBack: PassPostProcess;
         public fxaa: FxaaPostProcess;
         public imageProcessing: ImageProcessingPostProcess;
@@ -26,6 +28,7 @@
 
         // Values       
         private _bloomEnabled: boolean = false;
+        private _depthOfFieldEnabled: boolean = false;
         private _fxaaEnabled: boolean = false;
         private _imageProcessingEnabled: boolean = true;
         private _defaultPipelineTextureType: number;
@@ -91,6 +94,20 @@
         public get bloomEnabled(): boolean {
             return this._bloomEnabled;
         }
+
+        @serialize()
+        public get depthOfFieldEnabled(): boolean {
+            return this._depthOfFieldEnabled;
+        }   
+        
+        public set depthOfFieldEnabled(enabled: boolean) {
+            if (this._depthOfFieldEnabled === enabled) {
+                return;
+            }
+            this._depthOfFieldEnabled = enabled;
+            
+            this._buildPipeline();
+        } 
 
         public set fxaaEnabled(enabled: boolean) {
             if (this._fxaaEnabled === enabled) {
@@ -217,6 +234,12 @@
                     this.copyBack.alphaMode = Engine.ALPHA_SCREENMODE;
                 }
                 this.copyBack.autoClear = false;
+            }
+
+            if(this.depthOfFieldEnabled){
+                // Todo can I set the camera like this here?
+                this.depthOfField = new BABYLON.DepthOfFieldPostProcess("depthOfField", this._scene.enableDepthRenderer().getDepthMap(), 1, this._scene.activeCamera, BABYLON.Texture.BILINEAR_SAMPLINGMODE, engine, true, this._defaultPipelineTextureType)
+                this.addEffect(new PostProcessRenderEffect(engine, this.depthOfFieldPostProcessId, () => { return this.depthOfField; }, true));  
             }
 
             if (this._imageProcessingEnabled) {
