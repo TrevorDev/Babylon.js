@@ -1012,6 +1012,7 @@ module BABYLON {
                     });
                 }
             } else {
+                debugger;
                 var webVRController = <WebVRController>gamepad;
                 var controller = new VRExperienceHelperControllerGazer(webVRController, this._scene, this._cameraGazer._gazeTracker);
 
@@ -1051,23 +1052,23 @@ module BABYLON {
 
         private _enableInteractionOnController(controller: VRExperienceHelperControllerGazer) {
             var controllerMesh = controller.webVRController.mesh;
-            if (controllerMesh) {
-                var makeNotPick = (root: AbstractMesh) => {
-                    root.name += " laserPointer";
-                    root.getChildMeshes().forEach((c) => {
-                        makeNotPick(c);
-                    });
-                }
-                makeNotPick(controllerMesh);
-                var childMeshes = controllerMesh.getChildMeshes();
+            // if (controllerMesh) {
+            //     var makeNotPick = (root: AbstractMesh) => {
+            //         root.name += " laserPointer";
+            //         root.getChildMeshes().forEach((c) => {
+            //             makeNotPick(c);
+            //         });
+            //     }
+            //     makeNotPick(controllerMesh);
+            //     var childMeshes = controllerMesh.getChildMeshes();
 
-                for (var i = 0; i < childMeshes.length; i++) {
-                    if (childMeshes[i].name && childMeshes[i].name.indexOf("POINTING_POSE") >= 0) {
-                        controllerMesh = childMeshes[i];
-                        break;
-                    }
-                }
-                controller._setLaserPointerParent(controllerMesh);
+            //     for (var i = 0; i < childMeshes.length; i++) {
+            //         if (childMeshes[i].name && childMeshes[i].name.indexOf("POINTING_POSE") >= 0) {
+            //             controllerMesh = childMeshes[i];
+            //             break;
+            //         }
+            //     }
+            //     controller._setLaserPointerParent(controllerMesh);
                 controller._interactionsEnabled = true;
                 controller._activatePointer();
                 controller.webVRController.onMainButtonStateChangedObservable.add((stateObject) => {
@@ -1092,7 +1093,7 @@ module BABYLON {
                         controller._selectionPointerUp();
                     }
                 });
-            }
+            //}
         }
 
         private _checkTeleportWithRay(stateObject: StickValues, gazer: VRExperienceHelperGazer) {
@@ -1196,8 +1197,8 @@ module BABYLON {
         }
 
         private _enableTeleportationOnController(controller: VRExperienceHelperControllerGazer) {
-            var controllerMesh = controller.webVRController.mesh;
-            if (controllerMesh) {
+            // var controllerMesh = controller.webVRController.mesh;
+            // if (controllerMesh) {
                 if (!controller._interactionsEnabled) {
                     this._enableInteractionOnController(controller);
                 }
@@ -1221,7 +1222,7 @@ module BABYLON {
                     }
                     this._checkRotate(stateObject, controller);
                 });
-            }
+            //}
         }
 
         private _createTeleportationCircles() {
