@@ -14,6 +14,18 @@
         * Height of the texture to apply the post process on
         */
         public height = -1;
+
+        /**
+        * Width of the outputTexture from this post process (Used when renderToSelf is set)
+        */
+        public outputWidth = -1;
+        /**
+         * Height of the outputTexture from this post process (Used when renderToSelf is set)
+         */
+        public outputHeight = -1;
+
+        public _outputTextureLocation;
+
         /**
         * Sampling mode used by the shader
         * See https://doc.babylonjs.com/classes/3.1/texture
@@ -74,6 +86,15 @@
         * Smart array of input and output textures for the post process.
         */
         public _textures = new SmartArray<InternalTexture>(2);
+
+        /**
+        * Internal
+        */
+        public _outputTexture:Nullable<InternalTexture>;
+        /**
+        * Internal
+        */
+        public _renderToSelf = false;
         /**
         * The index in _textures that corresponds to the output texture.
         */
@@ -188,6 +209,17 @@
 
         public set inputTexture(value: InternalTexture) {
             this._forcedOutputTexture = value;
+        }
+
+        /**
+        * When set, the output of this post process will be written to a texture contained in this post process
+        * as opposed to writing the output to the next post process in the pipeline.
+        */
+        public set renderToSelf(value:boolean) {
+            this._renderToSelf = value;
+        }
+        public get renderToSelf():boolean {
+            return this._renderToSelf;
         }
 
         /**
@@ -344,6 +376,36 @@
             this.width = -1;
         }
 
+        private setInputTextureFromPostProcessesInputObservable:Nullable<Observer<Effect>> = null;
+
+        /**
+         * The input texture (textureSampler) for this post process will be set to the input texture of the given post process. If null is passed in the previous post processes output will be used.
+         * @param postProcess The post process which input of should be set to the input of this postprocess.
+         */
+        public setInputTextureFromPostProcessesInput(postProcess:Nullable<PostProcess>):void{
+            this.onApplyObservable.remove(this.setInputTextureFromPostProcessesInputObservable)
+            if(postProcess){
+                this.setInputTextureFromPostProcessesInputObservable = this.onApplyObservable.add((effect)=>{
+                    effect.setTextureFromPostProcess("textureSampler", postProcess);
+                })
+            }
+        }
+
+        private setInputTextureFromPostProcessesOutputObservable:Nullable<Observer<Effect>> = null;
+
+        /**
+         * The input texture (textureSampler) for this post process will be set to the input texture of the given post process. If null is passed in the previous post processes output will be used.
+         * @param postProcess The post process which input of should be set to the input of this postprocess.
+         */
+        public setInputTextureFromPostProcessesOutput(postProcess:Nullable<PostProcess>):void{
+            this.onApplyObservable.remove(this.setInputTextureFromPostProcessesOutputObservable)
+            if(postProcess){
+                this.setInputTextureFromPostProcessesOutputObservable = this.onApplyObservable.add((effect)=>{
+                    effect.setTextureFromPostProcessOutput("textureSampler", postProcess);
+                })
+            }
+        }
+
         /**
          * Activates the post process by intializing the textures to be used when executed. Notifies onActivateObservable.
          * When this post process is used in a pipeline, this is call will bind the input texture of this post process to the output of the previous.
@@ -351,7 +413,108 @@
          * @param sourceTexture The source texture to be inspected to get the width and height if not specified in the post process constructor. (default: null)
          * @param forceDepthStencil If true, a depth and stencil buffer will be generated. (default: false)
          */
-        public activate(camera: Nullable<Camera>, sourceTexture: Nullable<InternalTexture> = null, forceDepthStencil?: boolean): void {
+        public activateSelf(camera: Nullable<Camera>, sourceTexture: Nullable<InternalTexture> = null, forceDepthStencil?: boolean): void {
+            camera = camera || this._camera;
+
+            var scene = camera.getScene();
+            var engine = scene.getEngine();
+            var maxSize = engine.getCaps().maxTextureSize;
+
+            var requiredWidth = ((sourceTexture ? sourceTexture.width : this._engine.getRenderWidth(true)) * <number>this._options) | 0;
+            var requiredHeight = ((sourceTexture ? sourceTexture.height : this._engine.getRenderHeight(true)) * <number>this._options) | 0;
+
+            // If rendering to a webvr camera's left or right eye only half the width should be used to avoid resize when rendered to screen
+            var webVRCamera = (<WebVRFreeCamera>camera.parent);
+            if(webVRCamera && (webVRCamera.leftCamera == camera || webVRCamera.rightCamera == camera)){
+                requiredWidth/=2;
+            }
+
+            var desiredWidth = ((<PostProcessOptions>this._options).width || requiredWidth);
+            var desiredHeight = (<PostProcessOptions>this._options).height || requiredHeight;
+
+            if (this.adaptScaleToCurrentViewport) {
+                let currentViewport = engine.currentViewport;
+
+                if (currentViewport) {
+                    desiredWidth *= currentViewport.width;
+                    desiredHeight *= currentViewport.height;
+                }
+            }
+
+            if (this.renderTargetSamplingMode === Texture.TRILINEAR_SAMPLINGMODE || this.alwaysForcePOT) {
+                if (!(<PostProcessOptions>this._options).width) {
+                    desiredWidth = engine.needPOTTextures ? Tools.GetExponentOfTwo(desiredWidth, maxSize, this.scaleMode) : desiredWidth;
+                }
+
+                if (!(<PostProcessOptions>this._options).height) {
+                    desiredHeight = engine.needPOTTextures ? Tools.GetExponentOfTwo(desiredHeight, maxSize, this.scaleMode) : desiredHeight;
+                }
+            }
+
+            if (this.outputWidth !== desiredWidth || this.height !== desiredHeight) {
+                //debugger;
+                if(this._outputTexture){
+                    this._engine._releaseTexture(this._outputTexture);
+                }
+                
+                this.outputWidth = desiredWidth;
+                this.outputHeight = desiredHeight;
+
+                let textureSize = { width: this.outputWidth, height: this.outputHeight };
+                let textureOptions = {
+                    generateMipMaps: false,
+                    generateDepthBuffer: forceDepthStencil || camera._postProcesses.indexOf(this) === 0,
+                    generateStencilBuffer: (forceDepthStencil || camera._postProcesses.indexOf(this) === 0) && this._engine.isStencilEnable,
+                    samplingMode: this.renderTargetSamplingMode,
+                    type: this._textureType
+                };
+
+                this._outputTexture = this._engine.createRenderTargetTexture(textureSize, textureOptions);
+
+                this._texelSize.copyFromFloats(1.0 / this.outputWidth, 1.0 / this.outputHeight);
+
+                this.onSizeChangedObservable.notifyObservers(this);
+            }
+            
+            if(this._outputTexture){
+                if (this._outputTexture.samples !== this.samples) {
+                    this._engine.updateRenderTargetTextureSampleCount(this._outputTexture, this.samples);
+                }
+            }
+            
+
+            var target = <InternalTexture>this._outputTexture;
+
+            // Bind the input of this post process to be used as the output of the previous post process.
+            if (this.enablePixelPerfectMode) {
+                this._scaleRatio.copyFromFloats(requiredWidth / desiredWidth, requiredHeight / desiredHeight);
+                this._engine.bindFramebuffer(target, 0, requiredWidth, requiredHeight, true);
+            }
+            else {
+                this._scaleRatio.copyFromFloats(1, 1);
+                this._engine.bindFramebuffer(target, 0, undefined, undefined, true);
+            }
+
+            this.onActivateObservable.notifyObservers(camera);
+
+            // Clear
+            if (this.autoClear && this.alphaMode === Engine.ALPHA_DISABLE) {
+                this._engine.clear(this.clearColor ? this.clearColor : scene.clearColor, true, true, true);
+            }
+
+            if (this._reusable) {
+                this._currentRenderTextureInd = (this._currentRenderTextureInd + 1) % 2;
+            }
+        }
+
+        /**
+         * Activates the post process by intializing the textures to be used when executed. Notifies onActivateObservable.
+         * When this post process is used in a pipeline, this is call will bind the input texture of this post process to the output of the previous.
+         * @param camera The camera that will be used in the post process. This camera will be used when calling onActivateObservable.
+         * @param sourceTexture The source texture to be inspected to get the width and height if not specified in the post process constructor. (default: null)
+         * @param forceDepthStencil If true, a depth and stencil buffer will be generated. (default: false)
+         */
+        public activate(camera: Nullable<Camera>, sourceTexture: Nullable<InternalTexture> = null, forceDepthStencil?: boolean): InternalTexture {
             camera = camera || this._camera;
 
             var scene = camera.getScene();
@@ -461,6 +624,7 @@
             if (this._reusable) {
                 this._currentRenderTextureInd = (this._currentRenderTextureInd + 1) % 2;
             }
+            return target;
         }
 
 
@@ -536,7 +700,10 @@
             if (this._shareOutputWithPostProcess || this._forcedOutputTexture) {
                 return;
             }
-
+            if(this._outputTexture){
+                this._engine._releaseTexture(this._outputTexture);
+                this._outputTexture = null;
+            }
             if (this._textures.length > 0) {
                 for (var i = 0; i < this._textures.length; i++) {
                     this._engine._releaseTexture(this._textures.data[i]);

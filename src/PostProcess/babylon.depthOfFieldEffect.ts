@@ -20,14 +20,13 @@ module BABYLON {
      * The depth of field effect applies a blur to objects that are closer or further from where the camera is focusing.
      */
     export class DepthOfFieldEffect extends PostProcessRenderEffect{
-        private _depthOfFieldPass: PassPostProcess;
         private _circleOfConfusion: CircleOfConfusionPostProcess;
         private _depthOfFieldBlurX: Array<DepthOfFieldBlurPostProcess>;
         private _depthOfFieldBlurY: Array<DepthOfFieldBlurPostProcess>;
         /**
          * Private, last post process of dof
          */
-        public _depthOfFieldMerge: DepthOfFieldMergePostProcess;
+        public _finalMerge: FinalMergePostProcess;
 
         private _effects: Array<PostProcess> = [];
 
@@ -81,10 +80,12 @@ module BABYLON {
             }, true);
             // Circle of confusion value for each pixel is used to determine how much to blur that pixel
             this._circleOfConfusion = new BABYLON.CircleOfConfusionPostProcess("circleOfConfusion", depthTexture, 1, null, BABYLON.Texture.BILINEAR_SAMPLINGMODE, scene.getEngine(), false, pipelineTextureType, blockCompilation);
+            this._circleOfConfusion.renderToSelf = true;
+            
             // Capture circle of confusion texture
-            this._depthOfFieldPass = new PassPostProcess("depthOfFieldPass", 1.0, null, Texture.BILINEAR_SAMPLINGMODE, scene.getEngine(), false, pipelineTextureType, blockCompilation);
-            this._depthOfFieldPass.autoClear = false;
-
+            // this._depthOfFieldPass = new PassPostProcess("depthOfFieldPass", 1.0, null, Texture.BILINEAR_SAMPLINGMODE, scene.getEngine(), false, pipelineTextureType, blockCompilation);
+            // this._depthOfFieldPass.autoClear = false;
+            
             // Create a pyramid of blurred images (eg. fullSize 1/4 blur, half size 1/2 blur, quarter size 3/4 blur, eith size 4/4 blur)
             // Blur the image but do not blur on sharp far to near distance changes to avoid bleeding artifacts 
             // See section 2.6.2 http://fileadmin.cs.lth.se/cs/education/edan35/lectures/12dof.pdf
@@ -110,26 +111,55 @@ module BABYLON {
                 }
             }
             var adjustedKernelSize = kernelSize/Math.pow(2, blurCount-1);
+            //debugger;
             for(var i = 0;i<blurCount;i++){
-                var blurY = new DepthOfFieldBlurPostProcess("verticle blur", scene, new Vector2(0, 1.0), adjustedKernelSize, 1.0/Math.pow(2, i), null, this._depthOfFieldPass, i == 0 ? this._circleOfConfusion : null, Texture.BILINEAR_SAMPLINGMODE, scene.getEngine(), false, pipelineTextureType, blockCompilation);
+                var blurY = new DepthOfFieldBlurPostProcess("verticle blur", scene, new Vector2(0, 1.0), adjustedKernelSize, 1.0/Math.pow(2, i), null, this._circleOfConfusion, null, Texture.BILINEAR_SAMPLINGMODE, scene.getEngine(), false, pipelineTextureType, blockCompilation);
+                if(i == 0){
+                    blurY.setInputTextureFromPostProcessesInput(this._circleOfConfusion)
+                    blurY.width = this._circleOfConfusion.outputWidth
+                    blurY.height = this._circleOfConfusion.outputHeight
+                    //TODO: why does above not work??? and this is needed
+                    blurY.onApplyObservable.add((effect: Effect) => {
+                        effect.setFloat2('delta', (1 / this._circleOfConfusion.outputWidth) * blurY.direction.x, (1 / this._circleOfConfusion.outputHeight) * blurY.direction.y);
+                    });
+                }else{
+                    var lastBlurX = this._depthOfFieldBlurX[0]
+                    blurY.setInputTextureFromPostProcessesOutput(lastBlurX)
+                    blurY.width = this._circleOfConfusion.outputWidth
+                    blurY.height = this._circleOfConfusion.outputHeight
+                    //TODO: why does above not work??? and this is needed
+                    blurY.onApplyObservable.add((effect: Effect) => {
+                        effect.setFloat2('delta', (1 / this._circleOfConfusion.outputWidth) * blurY.direction.x, (1 / this._circleOfConfusion.outputHeight) * blurY.direction.y);
+                    });
+                }
                 blurY.autoClear = false;
-                var blurX = new DepthOfFieldBlurPostProcess("horizontal blur", scene, new Vector2(1.0, 0), adjustedKernelSize, 1.0/Math.pow(2, i), null,  this._depthOfFieldPass, null, Texture.BILINEAR_SAMPLINGMODE, scene.getEngine(), false, pipelineTextureType, blockCompilation);
+                var blurX = new DepthOfFieldBlurPostProcess("horizontal blur", scene, new Vector2(1.0, 0), adjustedKernelSize, 1.0/Math.pow(2, i), null,  this._circleOfConfusion, null, Texture.BILINEAR_SAMPLINGMODE, scene.getEngine(), false, pipelineTextureType, blockCompilation);
+                
+                //TODO this seems to make blur output blockier (something to do with how blur downscales in size?)
+                blurX.renderToSelf = true;
+                
                 blurX.autoClear = false;
                 this._depthOfFieldBlurY.push(blurY);
                 this._depthOfFieldBlurX.push(blurX);
             }
+            
+            var blurLevels:Array<PostProcess> = this._depthOfFieldBlurX;
+            blurLevels.reverse(); // Order from high to low blur
+            
+            // Merge blurred images with original image based on circleOfConfusion. Note: finalmerge needs to have block compilation set to avoid compiling shader prior to setting definitions
+            this._finalMerge = new FinalMergePostProcess("finalMerge", {depthOfField: {circleOfConfusion: this._circleOfConfusion, blurSteps: blurLevels}}, 1, null, BABYLON.Texture.BILINEAR_SAMPLINGMODE, scene.getEngine(), false, pipelineTextureType, true);
+            this._finalMerge.autoClear = false;
 
-            // Merge blurred images with original image based on circleOfConfusion
-            this._depthOfFieldMerge = new DepthOfFieldMergePostProcess("depthOfFieldMerge", this._circleOfConfusion, this._depthOfFieldPass, this._depthOfFieldBlurY.slice(1), 1, null, BABYLON.Texture.BILINEAR_SAMPLINGMODE, scene.getEngine(), false, pipelineTextureType, blockCompilation);
-            this._depthOfFieldMerge.autoClear = false;
+            this._finalMerge.setInputTextureFromPostProcessesInput(this._circleOfConfusion);
+            this._finalMerge.updateEffect();
             
             // Set all post processes on the effect.
-            this._effects= [this._circleOfConfusion, this._depthOfFieldPass];
+            this._effects= [this._circleOfConfusion];
             for(var i=0;i<this._depthOfFieldBlurX.length;i++){
                 this._effects.push(this._depthOfFieldBlurY[i]);
                 this._effects.push(this._depthOfFieldBlurX[i]);
             }
-            this._effects.push(this._depthOfFieldMerge);
+            this._effects.push(this._finalMerge);
         }
 
         /**
@@ -144,7 +174,7 @@ module BABYLON {
          * @param camera The camera to dispose the effect on.
          */
         public disposeEffects(camera:Camera){
-            this._depthOfFieldPass.dispose(camera);
+            //this._depthOfFieldPass.dispose(camera);
             this._circleOfConfusion.dispose(camera);
             this._depthOfFieldBlurX.forEach(element => {
                 element.dispose(camera);
@@ -152,7 +182,7 @@ module BABYLON {
             this._depthOfFieldBlurY.forEach(element => {
                 element.dispose(camera);
             });
-            this._depthOfFieldMerge.dispose(camera);
+            this._finalMerge.dispose(camera);
         }
 
         /**

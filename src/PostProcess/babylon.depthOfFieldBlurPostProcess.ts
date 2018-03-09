@@ -26,10 +26,7 @@ module BABYLON {
             super(name, direction, kernel, options, camera, samplingMode = Texture.BILINEAR_SAMPLINGMODE, engine, reusable, textureType = Engine.TEXTURETYPE_UNSIGNED_INT, `#define DOF 1\r\n`, blockCompilation);
 			
 			this.onApplyObservable.add((effect: Effect) => {
-                if(imageToBlur != null){
-                    effect.setTextureFromPostProcess("textureSampler", imageToBlur);
-                }
-                effect.setTextureFromPostProcess("circleOfConfusionSampler", circleOfConfusion);
+                effect.setTextureFromPostProcessOutput("circleOfConfusionSampler", circleOfConfusion);
                 if(scene.activeCamera){
                     effect.setFloat2('cameraMinMaxZ', scene.activeCamera.minZ, scene.activeCamera.maxZ);
                 }

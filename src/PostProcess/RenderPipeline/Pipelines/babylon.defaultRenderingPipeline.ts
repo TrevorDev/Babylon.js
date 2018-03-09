@@ -86,10 +86,6 @@
          */
         public imageProcessing: ImageProcessingPostProcess;
         /**
-         * Final post process to merge results of all previous passes
-         */
-        public finalMerge: PassPostProcess;
-        /**
 		 * Chromatic aberration post process which will shift rgb colors in the image
 		 */
         public chromaticAberration: ChromaticAberrationPostProcess;
@@ -430,50 +426,12 @@
                     this.depthOfField._updateEffects();
                 }
                 this.addEffect(this.depthOfField);
-                this._setAutoClearAndTextureSharing(this.depthOfField._depthOfFieldMerge);
+                this._setAutoClearAndTextureSharing(this.depthOfField._finalMerge);
             }
 
             if (this.bloomEnabled) {
-                this.pass = new PassPostProcess("sceneRenderTarget", 1.0, null, Texture.BILINEAR_SAMPLINGMODE, engine, false, this._defaultPipelineTextureType);
-                this._setAutoClearAndTextureSharing(this.pass, true);
-                this.addEffect(new PostProcessRenderEffect(engine, this.PassPostProcessId, () => { return this.pass; }, true));
-
-                if (!this._hdr) { // Need to enhance highlights if not using float rendering
-                    this.highlights = new HighlightsPostProcess("highlights", this.bloomScale, null, Texture.BILINEAR_SAMPLINGMODE, engine, false, this._defaultPipelineTextureType);
-                    this.addEffect(new PostProcessRenderEffect(engine, this.HighLightsPostProcessId, () => { return this.highlights; }, true));
-                    this.highlights.autoClear = false;
-                    this.highlights.alwaysForcePOT = true;
-                }
-
-                this.blurX = new BlurPostProcess("horizontal blur", new Vector2(1.0, 0), 10.0, this.bloomScale, null, Texture.BILINEAR_SAMPLINGMODE, engine, false, this._defaultPipelineTextureType);
-                this.addEffect(new PostProcessRenderEffect(engine, this.BlurXPostProcessId, () => { return this.blurX; }, true));
-                this.blurX.alwaysForcePOT = true;
-                this.blurX.autoClear = false;
-                this.blurX.onActivateObservable.add(() => {
-                    let dw = this.blurX.width / engine.getRenderWidth(true);
-                    this.blurX.kernel = this.bloomKernel * dw;
-                });
-
-                this.blurY = new BlurPostProcess("vertical blur", new Vector2(0, 1.0), 10.0, this.bloomScale, null, Texture.BILINEAR_SAMPLINGMODE, engine, false, this._defaultPipelineTextureType);
-                this.addEffect(new PostProcessRenderEffect(engine, this.BlurYPostProcessId, () => { return this.blurY; }, true));
-                this.blurY.alwaysForcePOT = true;
-                this.blurY.autoClear = false;
-                this.blurY.onActivateObservable.add(() => {
-                    let dh = this.blurY.height / engine.getRenderHeight(true);
-                    this.blurY.kernel = this.bloomKernel * dh;
-                });
-
-                this.copyBack = new PassPostProcess("bloomBlendBlit", this.bloomScale, null, Texture.BILINEAR_SAMPLINGMODE, engine, false, this._defaultPipelineTextureType);
-                this.addEffect(new PostProcessRenderEffect(engine, this.CopyBackPostProcessId, () => { return this.copyBack; }, true));
-                this.copyBack.alwaysForcePOT = true;
-                if (this._hdr) {
-                    this.copyBack.alphaMode = Engine.ALPHA_INTERPOLATE;
-                    let w = this.bloomWeight;
-                    this.copyBack.alphaConstants = new Color4(w, w, w, w);
-                } else {
-                    this.copyBack.alphaMode = Engine.ALPHA_SCREENMODE;
-                }
-                this.copyBack.autoClear = false;
+                var bloom = new BloomEffect(this._scene, 1.0, this.bloomKernel);
+                this.addEffect(bloom);
             }
 
             if (this._imageProcessingEnabled) {
@@ -482,31 +440,6 @@
                     this.addEffect(new PostProcessRenderEffect(engine, this.ImageProcessingPostProcessId, () => { return this.imageProcessing; }, true));
                 } else {
                     this._scene.imageProcessingConfiguration.applyByPostProcess = false;
-                }
-            }
-
-            if (this._hdr && this.imageProcessing) {
-                this.finalMerge = this.imageProcessing;
-            }
-            else {
-                this.finalMerge = new PassPostProcess("finalMerge", 1.0, null, Texture.BILINEAR_SAMPLINGMODE, engine, false, this._defaultPipelineTextureType);
-                this.addEffect(new PostProcessRenderEffect(engine, this.FinalMergePostProcessId, () => { return this.finalMerge; }, true));
-                this._setAutoClearAndTextureSharing(this.finalMerge, true);
-                
-                this.finalMerge.autoClear = !this.bloomEnabled && (!this._hdr || !this.imageProcessing);
-            }
-
-            if (this.bloomEnabled) {
-                if (this._hdr) { // Share render targets to save memory
-                    this.copyBack.shareOutputWith(this.blurX);
-                    if (this.imageProcessing) {
-                        this.imageProcessing.shareOutputWith(this.pass);
-                        this.imageProcessing.autoClear = false;
-                    } else {
-                        this.finalMerge.shareOutputWith(this.pass);
-                    }
-                } else {
-                    this.finalMerge.shareOutputWith(this.pass);
                 }
             }
 
@@ -567,10 +500,6 @@
                     this.fxaa.dispose(camera);
                 }
 
-                if (this.finalMerge) {
-                    this.finalMerge.dispose(camera);
-                }
-
                 // These are created in the constructor and should not be disposed on every pipeline change
                 if(disposeNonRecreated){
                     if (this.sharpen) {
@@ -594,7 +523,6 @@
             (<any>this.copyBack) = null;
             (<any>this.imageProcessing) = null;
             (<any>this.fxaa) = null;
-            (<any>this.finalMerge) = null;
 
             if(disposeNonRecreated){
                 (<any>this.sharpen) = null;
