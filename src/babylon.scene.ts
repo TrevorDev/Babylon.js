@@ -8,6 +8,24 @@
         readonly checksIsEnabled: boolean; // Indicates if the meshes have been checked to make sure they are isEnabled().
     }
 
+    class PointerEventFill extends PointerEvent{
+        constructor(typeArg:string, eventInitDict?: PointerEventInit){
+            super();
+            this.type = typeArg;
+            if(!eventInitDict){
+                eventInitDict = {}
+            }
+            this.pointerId = eventInitDict.pointerId ? eventInitDict.pointerId : 0;
+            this.width = eventInitDict.width ? eventInitDict.width : 1;
+            this.height = eventInitDict.height ? eventInitDict.height : 1;
+            this.pressure = eventInitDict.pressure ? eventInitDict.pressure : 0;
+            this.tiltX = eventInitDict.tiltX ? eventInitDict.tiltX : 0;
+            this.tiltY = eventInitDict.tiltY ? eventInitDict.tiltY : 0;
+            this.pointerType = eventInitDict.pointerType ? eventInitDict.pointerType : "";
+            this.isPrimary = eventInitDict.isPrimary ? eventInitDict.isPrimary : false;
+        }
+    }
+
     class ClickInfo {
         private _singleClick = false;
         private _doubleClick = false;
@@ -1232,7 +1250,7 @@
          * @param pointerEventInit pointer event state to be used when simulating the pointer event (eg. pointer id for multitouch)
          */
         public simulatePointerMove(pickResult: PickingInfo, pointerEventInit?: PointerEventInit): Scene {
-            let evt = new PointerEvent("pointermove", pointerEventInit);
+            let evt = new PointerEventFill("pointermove", pointerEventInit);
             return this._processPointerMove(pickResult, evt);
         }
 
@@ -1300,7 +1318,7 @@
          * @param pointerEventInit pointer event state to be used when simulating the pointer event (eg. pointer id for multitouch)
          */
         public simulatePointerDown(pickResult: PickingInfo, pointerEventInit?: PointerEventInit): Scene {
-            let evt = new PointerEvent("pointerdown", pointerEventInit);
+            let evt = new PointerEventFill("pointerdown", pointerEventInit);
 
             return this._processPointerDown(pickResult, evt);
         }
@@ -1368,7 +1386,7 @@
          * @param pointerEventInit pointer event state to be used when simulating the pointer event (eg. pointer id for multitouch)
          */
         public simulatePointerUp(pickResult: PickingInfo, pointerEventInit?: PointerEventInit): Scene {
-            let evt = new PointerEvent("pointerup", pointerEventInit);
+            let evt = new PointerEventFill("pointerup", pointerEventInit);
             let clickInfo = new ClickInfo();
             clickInfo.singleClick = true;
             clickInfo.ignore = true;
