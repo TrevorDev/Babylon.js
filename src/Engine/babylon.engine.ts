@@ -2028,7 +2028,15 @@
         }
 
         /** @ignore */
-        public _renderLoop(): void {
+        public _renderLoop(t:any, frame:any): void {
+            if(frame){
+                let pose = frame.getDevicePose(this._webXRFrameOfRef);
+                if(pose){
+                    BABYLON.Matrix.FromFloat32ArrayToRefScaled(pose.poseModelMatrix, 0, 1, this._xrPoseMatrix)
+                    this._xrPoseMatrix.invert()
+                }
+            }
+            
             if (!this._contextWasLost) {
                 var shouldRender = true;
                 if (!this.renderEvenInBackground && this._windowIsBackground) {
@@ -2049,12 +2057,13 @@
                     this.endFrame();
                 }
             }
-
             if (this._activeRenderLoops.length > 0) {
                 // Register new frame
                 var requester = null;
                 if (this._vrDisplay && this._vrDisplay.isPresenting)
                     requester = this._vrDisplay;
+                if (this._webXRSession)
+                    requester = this._webXRSession;
                 this._frameHandler = Tools.QueueNewFrame(this._bindedRenderFunction, requester);
             } else {
                 this._renderingQueueLaunched = false;
@@ -2322,6 +2331,45 @@
             this._webVRInitPromise = this._webVRInitPromise || this._getVRDisplaysAsync();
             this._webVRInitPromise.then(notifyObservers);
             return this._webVRInitPromise;
+        }
+
+        public _webXRDevice:any;
+        public _webXRSession:any;
+        public _webXRFrameOfRef:any;
+        public _xrPoseMatrix = BABYLON.Matrix.Identity();
+        public initWebXRAsync() {
+                if(!navigator.xr){
+                    return Promise.reject("webXR is not supported")
+                }
+                return navigator.xr.requestDevice().then((device:any)=>{
+                    this._webXRDevice = device;
+                    console.log("found device")
+                    console.log(this._webXRDevice)
+
+                    // TODO for some reason I needed to create a new canvas here because calling getContext("xrpresent") on a canvas that has already given a gl context returns null
+                    var canvas = document.createElement("canvas");//this.getRenderingCanvas()
+                    if(canvas){
+                        console.log(canvas)
+                        var ctx = canvas.getContext("xrpresent")
+                        console.log(ctx)
+                        return this._webXRDevice.requestSession({outputContext: ctx })
+                    }else{
+                        return Promise.reject("no canvas initialized in engine");
+                    }
+                }).then((session:any)=>{
+                    this._webXRSession = session
+                    console.log("found session")
+                    console.log(this._webXRSession)
+                    // TODO handle webgl context lost and restored that can happen here sometimes apperently
+                    return this._gl.setCompatibleXRDevice(this._webXRDevice)
+                }).then(()=>{
+                    this._webXRSession.baseLayer = new XRWebGLLayer(this._webXRSession, this._gl);
+                    console.log("set xr device on gl context")
+                    return this._webXRSession.requestFrameOfReference("eyeLevel")
+                }).then((frameOfref:any)=>{
+                    console.log("found frame of ref")
+                    this._webXRFrameOfRef = frameOfref
+                })
         }
 
         /**

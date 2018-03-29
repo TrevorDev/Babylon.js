@@ -1043,6 +1043,7 @@
                 "../../src/Cameras/Inputs/babylon.arcRotateCameraVRDeviceOrientationInput.js",
                 "../../src/Cameras/VR/babylon.vrCameraMetrics.js",
                 "../../src/Cameras/VR/babylon.webVRCamera.js",
+                "../../src/Cameras/VR/babylon.webXRCamera.js",
                 "../../src/Cameras/babylon.deviceOrientationCamera.js",
                 "../../src/Cameras/VR/babylon.vrDeviceOrientationCamera.js",
                 "../../src/Cameras/babylon.stereoscopicCameras.js",
