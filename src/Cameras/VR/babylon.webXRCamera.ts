@@ -9,5 +9,12 @@ module BABYLON {
                 this.rotationQuaternion.fromRotationMatrix(this.getEngine()._xrPoseMatrix)
             })
         }
+
+        public displayOnDevice(){
+            let mirrorCanvas = document.createElement('canvas');
+            let ctx = mirrorCanvas.getContext('xrpresent');
+            mirrorCanvas.setAttribute('id', 'mirror-canvas');
+            document.body.appendChild(mirrorCanvas);
+        }
     }
 }

@@ -2335,6 +2335,7 @@
 
         public _webXRDevice:any;
         public _webXRSession:any;
+        public _webXRExclusiveSession:any;
         public _webXRFrameOfRef:any;
         public _xrPoseMatrix = BABYLON.Matrix.Identity();
         public initWebXRAsync() {
@@ -2370,6 +2371,13 @@
                     console.log("found frame of ref")
                     this._webXRFrameOfRef = frameOfref
                 })
+        }
+
+        public displayXROnDevice(mirrorCTX:any){
+            this._webXRDevice.requestSession({ exclusive: true, outputContext: mirrorCTX }).then((session:any) => {
+                this._webXRExclusiveSession = session;
+                //TODO request frames on new session
+            });
         }
 
         /**
