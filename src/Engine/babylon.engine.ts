@@ -877,7 +877,9 @@
         public onAfterShaderCompilationObservable = new Observable<Engine>();
 
         // Private Members
-        private _gl: WebGLRenderingContext;
+        public _gl: WebGLRenderingContext;
+        public _onBeforeRenderObservable = new Observable<{time:number, frame?:any}>()
+        public _customRequester:any;
         private _renderingCanvas: Nullable<HTMLCanvasElement>;
         private _windowIsBackground = false;
         private _webGLVersion = 1.0;
@@ -2026,9 +2028,9 @@
                 this._activeRenderLoops.splice(index, 1);
             }
         }
-
+        public _xrFrame:any = null
         /** @ignore */
-        public _renderLoop(): void {
+        public _renderLoop(t:any, frame:any): void {            
             if (!this._contextWasLost) {
                 var shouldRender = true;
                 if (!this.renderEvenInBackground && this._windowIsBackground) {
@@ -2036,6 +2038,7 @@
                 }
 
                 if (shouldRender) {
+                    this._onBeforeRenderObservable.notifyObservers({time: t, frame: frame});
                     // Start new frame
                     this.beginFrame();
 
@@ -2049,12 +2052,15 @@
                     this.endFrame();
                 }
             }
-
+            
             if (this._activeRenderLoops.length > 0) {
                 // Register new frame
                 var requester = null;
-                if (this._vrDisplay && this._vrDisplay.isPresenting)
+                if(this._customRequester){
+                    requester = this._customRequester
+                }else if (this._vrDisplay && this._vrDisplay.isPresenting){
                     requester = this._vrDisplay;
+                }
                 this._frameHandler = Tools.QueueNewFrame(this._bindedRenderFunction, requester);
             } else {
                 this._renderingQueueLaunched = false;
@@ -2323,6 +2329,75 @@
             this._webVRInitPromise.then(notifyObservers);
             return this._webVRInitPromise;
         }
+
+        // public _webXRDevice:any;
+        // public _webXRSession:any;
+        // //public _webXRExclusiveSession:any;
+        // public _webXRFrameOfRef:any;
+        // public _xrPoseMatrix = BABYLON.Matrix.Identity();
+        // public initWebXRDeviceAsync() {
+        //     if(!navigator.xr){
+        //         return Promise.reject("webXR is not supported")
+        //     }
+        //     return navigator.xr.requestDevice().then((device:any)=>{
+        //         this._webXRDevice = device;
+        //         console.log("found device")
+        //         console.log(this._webXRDevice)
+        //     })
+        // }
+        // public initWebXRAsync() {
+        //         // TODO mirroring and magic window modes
+
+        //         // if(!navigator.xr){
+        //         //     return Promise.reject("webXR is not supported")
+        //         // }
+        //         // return navigator.xr.requestDevice().then((device:any)=>{
+        //         //     this._webXRDevice = device;
+        //         //     console.log("found device")
+        //         //     console.log(this._webXRDevice)
+
+        //         //     // TODO for some reason I needed to create a new canvas here because calling getContext("xrpresent") on a canvas that has already given a gl context returns null
+        //         //     // var canvas = document.createElement("canvas");//this.getRenderingCanvas()
+        //         //     // if(canvas){
+        //         //     //     console.log(canvas)
+        //         //     //     var ctx = canvas.getContext("xrpresent")
+        //         //     //     console.log(ctx)
+        //         //     //     return this._webXRDevice.requestSession({outputContext: ctx })
+        //         //     // }else{
+        //         //     //     return Promise.reject("no canvas initialized in engine");
+        //         //     // }
+        //         // })
+
+
+
+        //         return this._webXRDevice.requestSession({exclusive: true}).then((session:any)=>{
+        //             this._webXRSession = session
+        //             console.log("found session")
+        //             console.log(this._webXRSession)
+        //             // TODO handle webgl context lost and restored that can happen here sometimes apperently
+        //             return this._gl.setCompatibleXRDevice(this._webXRDevice)
+        //         }).then(()=>{
+        //             this._webXRSession.baseLayer = new XRWebGLLayer(this._webXRSession, this._gl);
+        //             console.log("set xr device on gl context")
+        //             return this._webXRSession.requestFrameOfReference("eyeLevel")
+        //         }).then((frameOfref:any)=>{
+        //             console.log("found frame of ref")
+        //             this._webXRFrameOfRef = frameOfref
+        //         })
+        // }
+
+        // public displayXROnDevice(mirrorCTX:any){
+        //     this._webXRDevice.requestSession({ exclusive: true, outputContext: mirrorCTX }).then((session:any) => {
+        //         this._webXRExclusiveSession = session;
+        //         //TODO request frames on new session
+        //     });
+        // }
+
+        // public setCompatibleXRDeviceAsync(webXRDevice:any){
+        //     // TODO handle webgl context lost and restored that can happen here sometimes apperently
+        //     var context:any = this._gl
+        //     return context.setCompatibleXRDevice(webXRDevice)
+        // }
 
         /**
          * Call this function to switch to webVR mode
