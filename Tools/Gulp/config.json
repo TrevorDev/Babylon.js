@@ -106,6 +106,7 @@
             "layer",
             "textureTools",
             "cameraBehaviors",
+            "meshBehaviors",
             "nullEngine",
             "instrumentation",
             "backgroundMaterial",
@@ -282,6 +283,14 @@
                 "../../src/Behaviors/Cameras/babylon.framingBehavior.js",
                 "../../src/Behaviors/Cameras/babylon.bouncingBehavior.js",
                 "../../src/Behaviors/Cameras/babylon.autoRotationBehavior.js"
+            ],
+            "dependUpon": [
+                "core"
+            ]
+        },
+        "meshBehaviors": {
+            "files": [
+                "../../src/Behaviors/Mesh/babylon.pointerDragBehavior.js"
             ],
             "dependUpon": [
                 "core"

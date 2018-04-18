@@ -220,6 +220,7 @@
          * @returns the current Node
          */
         public removeBehavior(behavior: Behavior<Node>): Node {
+            debugger;
             var index = this._behaviors.indexOf(behavior);
 
             if (index === -1) {

@@ -1169,6 +1169,7 @@
 
         private _pickWithRayInverseMatrix: Matrix;
 
+        private _gizmoRenderer: GizmoRenderer;
         private _boundingBoxRenderer: BoundingBoxRenderer;
         private _outlineRenderer: OutlineRenderer;
 
@@ -1379,6 +1380,18 @@
             }
 
             return this._boundingBoxRenderer;
+        }
+
+        /** 
+         * Gets the bounding box renderer associated with the scene
+         * @returns a BoundingBoxRenderer
+         */
+        public getGizmoRenderer(): GizmoRenderer {
+            if (!this._gizmoRenderer) {
+                this._gizmoRenderer = new GizmoRenderer(this);
+            }
+
+            return this._gizmoRenderer;
         }
 
         /** 
@@ -4480,6 +4493,10 @@
             // Bounding boxes
             if (this._boundingBoxRenderer) {
                 this._boundingBoxRenderer.render();
+            }
+
+            if(this._gizmoRenderer){
+                this._gizmoRenderer.render();
             }
 
             // Lens flares
