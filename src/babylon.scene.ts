@@ -1170,6 +1170,7 @@
         private _pickWithRayInverseMatrix: Matrix;
 
         private _boundingBoxRenderer: BoundingBoxRenderer;
+        private _gizmoRenderer: GizmoRenderer;
         private _outlineRenderer: OutlineRenderer;
 
         private _viewMatrix: Matrix;
@@ -1379,6 +1380,18 @@
             }
 
             return this._boundingBoxRenderer;
+        }
+
+        /** 
+         * Gets the bounding box renderer associated with the scene
+         * @returns a BoundingBoxRenderer
+         */
+        public getGizmoRenderer(): GizmoRenderer {
+            if (!this._gizmoRenderer) {
+                this._gizmoRenderer = new GizmoRenderer(this);
+            }
+
+            return this._gizmoRenderer;
         }
 
         /** 
@@ -4517,6 +4530,11 @@
                 }
                 engine.setDepthBuffer(true);
             }
+
+            // Gizmo renderer
+            if (this._gizmoRenderer) {
+                this._gizmoRenderer.render();
+            }
             
             // Finalize frame
             this.postProcessManager._finalizeFrame(camera.isIntermediate);
@@ -5106,6 +5124,9 @@
 
             if (this._boundingBoxRenderer) {
                 this._boundingBoxRenderer.dispose();
+            }
+            if (this._gizmoRenderer) {
+                this._gizmoRenderer.dispose();
             }
             this._meshesForIntersections.dispose();
             this._toBeDisposed.dispose();
