@@ -4340,6 +4340,17 @@
 
             this.onAfterRenderTargetsRenderObservable.notifyObservers(this);
 
+            if(camera._outputBuffer){
+                
+                // var viewport  = this._engine._webXRSession.baseLayer.getViewport(this._engine._xrFrame.views[0])
+                // var texture = {_framebuffer: this._engine._webXRSession.baseLayer.framebuffer}
+                // this._engine.bindFramebuffer(texture, 0, viewport .width, viewport .height, false);
+
+                this._engine._gl.bindFramebuffer(this._engine._gl.FRAMEBUFFER, camera._outputBuffer);
+                // this._engine._gl.clear(this._engine._gl.COLOR_BUFFER_BIT | this._engine._gl.DEPTH_BUFFER_BIT);
+                this._engine._gl.viewport(camera.viewport.x, camera.viewport.y, camera.viewport.width, camera.viewport.height);
+            }
+            
             // Prepare Frame
             this.postProcessManager._prepareFrame();
 
