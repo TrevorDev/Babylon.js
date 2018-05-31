@@ -9,11 +9,12 @@ module BABYLON {
         private _pointerObserver:Nullable<Observer<PointerInfo>>;
         private static _planeScene:Scene;
         private _draggingID = -1;
+        private _debugMode = false;
         
         /**
          *  Fires each time the attached mesh is dragged with the pointer
          */
-        public onDragObservable = new Observable<{delta:Vector3, dragPlanePoint:Vector3}>()
+        public onDragObservable = new Observable<{delta:Vector3, dragPlanePoint:Vector3, dragPlaneNormal:Vector3}>()
         /**
          *  Fires each time a drag begins (eg. mouse down on mesh)
          */
@@ -42,6 +43,9 @@ module BABYLON {
          */
         constructor(private options:{dragAxis?:Vector3, dragPlaneNormal?:Vector3}){
             var optionCount = 0;
+            if(options === undefined){
+                options = {}
+            }
             if(options.dragAxis){
                 optionCount++;
             }
@@ -50,9 +54,6 @@ module BABYLON {
             }
             if(optionCount > 1){
                 throw "Multiple drag modes specified in dragBehavior options. Only one expected";
-            }
-            if(optionCount < 1){
-                throw "At least one drag mode option must be specified";
             }
         }
 
@@ -78,10 +79,14 @@ module BABYLON {
 
             // Initialize drag plane to not interfere with existing scene
             if(!PointerDragBehavior._planeScene){
-                PointerDragBehavior._planeScene = new BABYLON.Scene(this._scene.getEngine())
-                this._scene.getEngine().scenes.pop();
+                if(this._debugMode){
+                    PointerDragBehavior._planeScene = this._scene
+                }else{
+                    PointerDragBehavior._planeScene = new BABYLON.Scene(this._scene.getEngine())
+                    this._scene.getEngine().scenes.pop();
+                }
             }
-            this._dragPlane = BABYLON.Mesh.CreatePlane("pointerDragPlane", 1000, PointerDragBehavior._planeScene, false, BABYLON.Mesh.DOUBLESIDE);
+            this._dragPlane = BABYLON.Mesh.CreatePlane("pointerDragPlane", this._debugMode ? 1 : 10000, PointerDragBehavior._planeScene, false, BABYLON.Mesh.DOUBLESIDE);
 
             // State of the drag
             var dragging = false;
@@ -124,6 +129,12 @@ module BABYLON {
                                 //get the closest point on the dragaxis from the selected mesh to the picked point location
                                 // https://www.opengl.org/discussion_boards/showthread.php/159717-Closest-point-on-a-Vector-to-a-point
                                 this.options.dragAxis.scaleToRef(BABYLON.Vector3.Dot(pickedPoint.subtract(lastPosition), this.options.dragAxis), delta);
+                                
+                                //Make delta in direction of vector
+                                delta.multiplyInPlace(new BABYLON.Vector3(
+                                Math.abs(this.options.dragAxis.x)/this.options.dragAxis.x,
+                                Math.abs(this.options.dragAxis.y)/this.options.dragAxis.y,
+                                Math.abs(this.options.dragAxis.z)/this.options.dragAxis.z))
                             }else{
                                 pickedPoint.subtractToRef(lastPosition, delta);
                             }
@@ -131,7 +142,7 @@ module BABYLON {
                                 (<Mesh>this._attachedNode).position.addInPlace(delta);
                                 
                             }
-                            this.onDragObservable.notifyObservers({delta: delta, dragPlanePoint: pickedPoint});
+                            this.onDragObservable.notifyObservers({delta: delta, dragPlanePoint: pickedPoint, dragPlaneNormal: this._dragPlane.forward});
                             lastPosition.copyFrom(pickedPoint);
                         }
                     }
@@ -153,7 +164,7 @@ module BABYLON {
 
         // Position the drag plane based on the attached mesh position, for single axis rotate the plane along the axis to face the camera
         private _updateDragPlanePosition(ray:Ray){
-            var pointA = this._dragPlaneParent ? this._dragPlaneParent.position : (<Mesh>this._attachedNode).position // center
+            var pointA = this._dragPlaneParent ? this._dragPlaneParent.absolutePosition : (<Mesh>this._attachedNode).absolutePosition // center
             if(this.options.dragAxis){
                 var camPos = ray.origin;
 
@@ -172,6 +183,9 @@ module BABYLON {
             }else if(this.options.dragPlaneNormal){
                 this._dragPlane.position.copyFrom(pointA);
                 this._dragPlane.lookAt(pointA.add(this.options.dragPlaneNormal));
+            }else{
+                this._dragPlane.position.copyFrom(pointA);
+                this._dragPlane.lookAt(ray.origin);
             }
             this._dragPlane.computeWorldMatrix(true);
         }
