@@ -12,6 +12,8 @@ module BABYLON {
         // Debug mode will display drag planes to help visualize behavior
         private _debugMode = false;
         private _maxDragAngle = Math.PI/5;
+        // How much faster the object should move when its further away
+        private _sixDofZDragFactor = 5;
         
         /**
          *  Fires each time the attached mesh is dragged with the pointer
@@ -47,7 +49,7 @@ module BABYLON {
          * Creates a pointer drag behavior that can be attached to a mesh
          * @param options The drag axis or normal of the plane that will be dragged across. If no options are specified the drag plane will always face the ray's origin (eg. camera)
          */
-        constructor(private options:{dragAxis?:Vector3, dragPlaneNormal?:Vector3}){
+        constructor(private options:{dragAxis?:Vector3, dragPlaneNormal?:Vector3, sixDofDrag?:boolean}){
             var optionCount = 0;
             if(options === undefined){
                 options = {}
@@ -56,6 +58,9 @@ module BABYLON {
                 optionCount++;
             }
             if(options.dragPlaneNormal){
+                optionCount++;
+            }
+            if(options.sixDofDrag){
                 optionCount++;
             }
             if(optionCount > 1){
@@ -99,6 +104,15 @@ module BABYLON {
             var lastPosition = new BABYLON.Vector3(0,0,0);
             var delta = new BABYLON.Vector3(0,0,0);
             var dragLength = 0;
+            var pickedMesh:Nullable<AbstractMesh> = null;
+
+            var lastSixDofOriginPosition = new BABYLON.Vector3(0,0,0);
+            
+            // Setup virtual meshes to be used for dragging without dirtying the existing scene
+            var virtualOriginMesh = new BABYLON.AbstractMesh("", PointerDragBehavior._planeScene)
+            virtualOriginMesh.rotationQuaternion = new Quaternion();
+            var virtualDragMesh = new BABYLON.AbstractMesh("", PointerDragBehavior._planeScene)
+            virtualDragMesh.rotationQuaternion = new Quaternion();
 
             var pickPredicate = (m:AbstractMesh)=>{
                 return this._attachedNode == m || m.isDescendantOf(this._attachedNode)
@@ -111,49 +125,112 @@ module BABYLON {
                 
                 if (pointerInfo.type == BABYLON.PointerEventTypes.POINTERDOWN) {
                     if(!dragging && pointerInfo.pickInfo && pointerInfo.pickInfo.hit && pointerInfo.pickInfo.pickedMesh && pointerInfo.pickInfo.ray && pickPredicate(pointerInfo.pickInfo.pickedMesh)){
-                        this._updateDragPlanePosition(pointerInfo.pickInfo.ray);
-                        var pickedPoint = this._pickWithRayOnDragPlane(pointerInfo.pickInfo.ray);
-                        if(pickedPoint){
+                        pickedMesh = pointerInfo.pickInfo.pickedMesh
+                        if(this.options.sixDofDrag){
+                            lastSixDofOriginPosition.copyFrom(pointerInfo.pickInfo.ray.origin)
+
+                            // Set position and orientation of the controller
+                            virtualOriginMesh.position.copyFrom(pointerInfo.pickInfo.ray.origin)
+                            virtualOriginMesh.lookAt(pointerInfo.pickInfo.ray.origin.subtract(pointerInfo.pickInfo.ray.direction))
+
+                            // Attach the virtual drag mesh to the virtual origin mesh so it can be dragged
+                            virtualOriginMesh.removeChild(virtualDragMesh)
+                            virtualDragMesh.position.copyFrom(pickedMesh.absolutePosition)
+                            if(!pickedMesh.rotationQuaternion){
+                                pickedMesh.rotationQuaternion = new Quaternion();
+                            }
+                            virtualDragMesh.rotationQuaternion!.copyFrom(pickedMesh.rotationQuaternion)
+                            virtualOriginMesh.addChild(virtualDragMesh)
+
+                            // Update state
                             dragging = true;
                             this._draggingID = (<PointerEvent>pointerInfo.event).pointerId;
-                            lastPosition.copyFrom(pickedPoint);
-                            this.onDragStartObservable.notifyObservers({dragPlanePoint: pickedPoint});
+                            this.onDragStartObservable.notifyObservers({dragPlanePoint: Vector3.Zero()});
+                        }else{
+                            this._updateDragPlanePosition(pointerInfo.pickInfo.ray);
+                            var pickedPoint = this._pickWithRayOnDragPlane(pointerInfo.pickInfo.ray);
+                            if(pickedPoint){
+                                dragging = true;
+                                this._draggingID = (<PointerEvent>pointerInfo.event).pointerId;
+                                lastPosition.copyFrom(pickedPoint);
+                                this.onDragStartObservable.notifyObservers({dragPlanePoint: pickedPoint});
+                            }
                         }
                     }
                 }else if(pointerInfo.type == BABYLON.PointerEventTypes.POINTERUP){
                     if(this._draggingID == (<PointerEvent>pointerInfo.event).pointerId){
                         dragging = false;
                         this._draggingID = -1;
-                        this.onDragEndObservable.notifyObservers({dragPlanePoint: lastPosition});
+                        if(this.options.sixDofDrag && pickedMesh){
+                            this.onDragEndObservable.notifyObservers({dragPlanePoint: pickedMesh.absolutePosition});
+                        }else{
+                            this.onDragEndObservable.notifyObservers({dragPlanePoint: lastPosition});
+                        }
+                        pickedMesh = null;
+                        virtualOriginMesh.removeChild(virtualDragMesh);
                     }
                 }else if(pointerInfo.type == BABYLON.PointerEventTypes.POINTERMOVE){
                     if(this._draggingID == (<PointerEvent>pointerInfo.event).pointerId && dragging && pointerInfo.pickInfo && pointerInfo.pickInfo.ray){
-                        var pickedPoint = this._pickWithRayOnDragPlane(pointerInfo.pickInfo.ray);
-                        
-                         // Get angle between drag plane and ray. Only update the drag plane at non steep angles to avoid jumps in delta position
-                        var angle = Math.acos(Vector3.Dot(this._dragPlane.forward, pointerInfo.pickInfo.ray.direction));
-                        if(angle < this._maxDragAngle){
-                            this._updateDragPlanePosition(pointerInfo.pickInfo.ray);
-                        }
-                        
-                        if (pickedPoint) {
-                            // depending on the drag mode option drag accordingly
-                            if(this.options.dragAxis){
-                                // Convert local drag axis to world
-                                var worldDragAxis = Vector3.TransformCoordinates(this.options.dragAxis, this._attachedNode.getWorldMatrix().getRotationMatrix());
+                        if(this.options.sixDofDrag){
+                            if(pickedMesh){
+                                // Calculate controller drag distance in controller space
+                                var originDragDifference = pointerInfo.pickInfo.ray.origin.subtract(lastSixDofOriginPosition);
+                                lastSixDofOriginPosition.copyFrom(pointerInfo.pickInfo.ray.origin);
+                                var localOriginDragDifference = Vector3.TransformCoordinates(originDragDifference, Matrix.Invert(virtualOriginMesh.getWorldMatrix().getRotationMatrix()));
+                                
+                                virtualOriginMesh.addChild(virtualDragMesh);
+                                // Determine how much the controller moved to/away towards the dragged object and use this to move the object further when its further away
+                                var zDragDistance = Vector3.Dot(localOriginDragDifference, virtualOriginMesh.position.normalizeToNew());
+                                virtualDragMesh.position.z -= virtualDragMesh.position.z < 1 ? zDragDistance : zDragDistance*this._sixDofZDragFactor*virtualDragMesh.position.z;
+                                if(virtualDragMesh.position.z < 0){
+                                    virtualDragMesh.position.z = 0;
+                                }
+                                
+                                // Update the controller position
+                                virtualOriginMesh.position.copyFrom(pointerInfo.pickInfo.ray.origin);
+                                virtualOriginMesh.lookAt(pointerInfo.pickInfo.ray.origin.subtract(pointerInfo.pickInfo.ray.direction));
+                                virtualOriginMesh.removeChild(virtualDragMesh)
+                            
+                                // Move the virtualObjectsPosition into the picked mesh's space if needed
+                                var virtualPositionInPickedMeshSpace = virtualDragMesh.absolutePosition;
+                                if(pickedMesh.parent){
+                                    virtualPositionInPickedMeshSpace = Vector3.TransformCoordinates(virtualPositionInPickedMeshSpace, Matrix.Invert(pickedMesh.parent.getWorldMatrix()));
+                                }
 
-                                // Project delta drag from the drag plane onto the drag axis
-                                dragLength = BABYLON.Vector3.Dot(pickedPoint.subtract(lastPosition), worldDragAxis)
-                                worldDragAxis.scaleToRef(dragLength, delta);
-                            }else{
-                                dragLength = delta.length();
-                                pickedPoint.subtractToRef(lastPosition, delta);
+                                var dragStart = pickedMesh.absolutePosition.clone();
+                                // Slowly move mesh to avoid jitter
+                                pickedMesh.position.addInPlace(virtualPositionInPickedMeshSpace.subtract(pickedMesh.position).scale(0.2));
+                                pickedMesh.absolutePosition.subtractToRef(dragStart, delta);
+                                this.onDragObservable.notifyObservers({dragDistance: delta.length(), delta: delta, dragPlanePoint: pickedMesh.absolutePosition, dragPlaneNormal: Vector3.Zero()});
                             }
-                            if(this.moveAttached){
-                                (<Mesh>this._attachedNode).position.addInPlace(delta);
+                        }else{
+                            var pickedPoint = this._pickWithRayOnDragPlane(pointerInfo.pickInfo.ray);
+                        
+                            // Get angle between drag plane and ray. Only update the drag plane at non steep angles to avoid jumps in delta position
+                            var angle = Math.acos(Vector3.Dot(this._dragPlane.forward, pointerInfo.pickInfo.ray.direction));
+                            if(angle < this._maxDragAngle){
+                                this._updateDragPlanePosition(pointerInfo.pickInfo.ray);
                             }
-                            this.onDragObservable.notifyObservers({dragDistance: dragLength, delta: delta, dragPlanePoint: pickedPoint, dragPlaneNormal: this._dragPlane.forward});
-                            lastPosition.copyFrom(pickedPoint);
+                            
+                            if (pickedPoint) {
+                                // depending on the drag mode option drag accordingly
+                                if(this.options.dragAxis){
+                                    // Convert local drag axis to world
+                                    var worldDragAxis = Vector3.TransformCoordinates(this.options.dragAxis, this._attachedNode.getWorldMatrix().getRotationMatrix());
+
+                                    // Project delta drag from the drag plane onto the drag axis
+                                    dragLength = BABYLON.Vector3.Dot(pickedPoint.subtract(lastPosition), worldDragAxis)
+                                    worldDragAxis.scaleToRef(dragLength, delta);
+                                }else{
+                                    dragLength = delta.length();
+                                    pickedPoint.subtractToRef(lastPosition, delta);
+                                }
+                                if(this.moveAttached){
+                                    (<Mesh>this._attachedNode).position.addInPlace(delta);
+                                }
+                                this.onDragObservable.notifyObservers({dragDistance: dragLength, delta: delta, dragPlanePoint: pickedPoint, dragPlaneNormal: this._dragPlane.forward});
+                                lastPosition.copyFrom(pickedPoint);
+                            }
                         }
                     }
                 }
@@ -193,6 +270,8 @@ module BABYLON {
             }else if(this.options.dragPlaneNormal){
                 this._dragPlane.position.copyFrom(pointA);
                 this._dragPlane.lookAt(pointA.subtract(this.options.dragPlaneNormal));
+            }else if(this.options.sixDofDrag){
+                // No drag plane is used
             }else{
                 this._dragPlane.position.copyFrom(pointA);
                 this._dragPlane.lookAt(ray.origin);
