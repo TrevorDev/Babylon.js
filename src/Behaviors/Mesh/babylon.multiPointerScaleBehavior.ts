@@ -3,13 +3,19 @@ module BABYLON {
      * A behavior that when attached to a mesh will allow the mesh to be scaled
      */
     export class MultiPointerScaleBehavior implements Behavior<Mesh> {
-        private dragBehaviorA:PointerDragBehavior;
-        private dragBehaviorB:PointerDragBehavior;
-        private startDistance = 0;
-        private initialScale = new Vector3(0,0,0);
-        private targetScale = new Vector3(0,0,0);
-        
+        private _dragBehaviorA:PointerDragBehavior;
+        private _dragBehaviorB:PointerDragBehavior;
+        private _startDistance = 0;
+        private _initialScale = new Vector3(0,0,0);
+        private _targetScale = new Vector3(0,0,0);
+        private _ownerNode:Mesh;
+        private _sceneRenderObserver:Nullable<Observer<Scene>> = null;
+
         constructor(){
+            this._dragBehaviorA = new BABYLON.PointerDragBehavior({});
+            this._dragBehaviorA.moveAttached = false;
+            this._dragBehaviorB = new BABYLON.PointerDragBehavior({});
+            this._dragBehaviorB.moveAttached = false;
         }
         
         /**
@@ -24,66 +30,53 @@ module BABYLON {
          */
         public init() {}
 
+        private _getCurrentDistance(){
+            return this._dragBehaviorA.lastDragPosition.subtract(this._dragBehaviorB.lastDragPosition).length();
+        }
+
         /**
          * Attaches the scale behavior the passed in mesh
          * @param ownerNode The mesh that will be scaled around once attached
          */
         public attach(ownerNode: Mesh): void {
-            var dragOne = new BABYLON.PointerDragBehavior({});
-            dragOne.moveAttached = false;
-            var dragTwo = new BABYLON.PointerDragBehavior({});
-            dragTwo.moveAttached = false;
-            
-            var startDistance = 0;
-            var initialScale = ownerNode.scaling.clone();
-            var targetScale = initialScale.clone();
-
-            var getCurrentDistance = ()=>{
-                return dragOne.lastDragPosition.subtract(dragTwo.lastDragPosition).length();
-            }
-
-            dragOne.onDragStartObservable.add((e)=>{
-                if(dragOne.dragging && dragTwo.dragging){
-                    if(dragOne.currentDraggingPointerID == dragTwo.currentDraggingPointerID){
-                        dragOne.releaseDrag();
+            this._ownerNode = ownerNode;
+            this._dragBehaviorA.onDragStartObservable.add((e)=>{
+                if(this._dragBehaviorA.dragging && this._dragBehaviorB.dragging){
+                    if(this._dragBehaviorA.currentDraggingPointerID == this._dragBehaviorB.currentDraggingPointerID){
+                        this._dragBehaviorA.releaseDrag();
                     }else{
-                        initialScale.copyFrom(ownerNode.scaling)
-                        startDistance = getCurrentDistance();
+                        this._initialScale.copyFrom(ownerNode.scaling)
+                        this._startDistance = this._getCurrentDistance();
                     }
                 }
             });
-            dragTwo.onDragStartObservable.add((e)=>{
-                if(dragOne.dragging && dragTwo.dragging){
-                    if(dragOne.currentDraggingPointerID == dragTwo.currentDraggingPointerID){
-                        dragTwo.releaseDrag();
+            this._dragBehaviorB.onDragStartObservable.add((e)=>{
+                if(this._dragBehaviorA.dragging && this._dragBehaviorB.dragging){
+                    if(this._dragBehaviorA.currentDraggingPointerID == this._dragBehaviorB.currentDraggingPointerID){
+                        this._dragBehaviorB.releaseDrag();
                     }else{
-                        initialScale.copyFrom(ownerNode.scaling)
-                        startDistance = getCurrentDistance();
+                        this._initialScale.copyFrom(ownerNode.scaling)
+                        this._startDistance = this._getCurrentDistance();
                     }
                 }
             });
+            [this._dragBehaviorA, this._dragBehaviorB].forEach((behavior)=>{
+                behavior.onDragObservable.add(()=>{
+                    if(this._dragBehaviorA.dragging && this._dragBehaviorB.dragging){
+                        var ratio = this._getCurrentDistance()/this._startDistance;
+                        this._initialScale.scaleToRef(ratio, this._targetScale);
+                    }
+                });
+            })
 
-            dragOne.onDragObservable.add(()=>{
-                if(dragOne.dragging && dragTwo.dragging){
-                    var ratio = getCurrentDistance()/startDistance;
-                    initialScale.scaleToRef(ratio, targetScale);
-                }
-            });
-            dragTwo.onDragObservable.add(()=>{
-                if(dragOne.dragging && dragTwo.dragging){
-                    var ratio = getCurrentDistance()/startDistance;
-                    initialScale.scaleToRef(ratio, targetScale);
-                }
-            });
+            ownerNode.addBehavior(this._dragBehaviorA);
+            ownerNode.addBehavior(this._dragBehaviorB);
 
-            ownerNode.addBehavior(dragOne)
-            ownerNode.addBehavior(dragTwo)
-
-            ownerNode.getScene().onBeforeRenderObservable.add(()=>{
-                if(dragOne.dragging && dragTwo.dragging){
-                    var change = targetScale.subtract(ownerNode.scaling).scaleInPlace(0.1)
+            this._sceneRenderObserver = ownerNode.getScene().onBeforeRenderObservable.add(()=>{
+                if(this._dragBehaviorA.dragging && this._dragBehaviorB.dragging){
+                    var change = this._targetScale.subtract(ownerNode.scaling).scaleInPlace(0.1);
                     if(change.length()>0.1){
-                        ownerNode.scaling.addInPlace(change)
+                        ownerNode.scaling.addInPlace(change);
                     }
                 }
             })
@@ -93,6 +86,12 @@ module BABYLON {
          *  Detaches the behavior from the mesh
          */
         public detach(): void {
+            this._ownerNode.getScene().onBeforeRenderObservable.remove(this._sceneRenderObserver);
+            [this._dragBehaviorA, this._dragBehaviorB].forEach((behavior)=>{
+                behavior.onDragStartObservable.clear();
+                behavior.onDragObservable.clear();
+                this._ownerNode.removeBehavior(behavior);
+            });
         }
     }
 }
