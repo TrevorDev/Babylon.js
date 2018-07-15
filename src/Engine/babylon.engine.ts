@@ -592,6 +592,8 @@
 
         /** @hidden */
         public _gl: WebGLRenderingContext;
+        public _onBeforeRenderObservable = new Observable<{time:number, frame?:any}>()
+        public _customRequester:any;
         private _renderingCanvas: Nullable<HTMLCanvasElement>;
         private _windowIsBackground = false;
         private _webGLVersion = 1.0;
@@ -1774,7 +1776,7 @@
         }
 
         /** @hidden */
-        public _renderLoop(): void {
+        public _renderLoop(time:any, frame:any): void {
             if (!this._contextWasLost) {
                 var shouldRender = true;
                 if (!this.renderEvenInBackground && this._windowIsBackground) {
@@ -1782,6 +1784,7 @@
                 }
 
                 if (shouldRender) {
+                    this._onBeforeRenderObservable.notifyObservers({time: time, frame: frame});
                     // Start new frame
                     this.beginFrame();
 
@@ -1799,8 +1802,11 @@
             if (this._activeRenderLoops.length > 0) {
                 // Register new frame
                 var requester = null;
-                if (this._vrDisplay && this._vrDisplay.isPresenting)
+                if(this._customRequester){
+                    requester = this._customRequester
+                }else if (this._vrDisplay && this._vrDisplay.isPresenting){
                     requester = this._vrDisplay;
+                }
                 this._frameHandler = Tools.QueueNewFrame(this._bindedRenderFunction, requester);
             } else {
                 this._renderingQueueLaunched = false;
