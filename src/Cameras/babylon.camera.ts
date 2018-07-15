@@ -16,6 +16,7 @@
         private static _RIG_MODE_STEREOSCOPIC_OVERUNDER = 13;
         private static _RIG_MODE_VR = 20;
         private static _RIG_MODE_WEBVR = 21;
+        private static _RIG_MODE_CUSTOM = 22;
 
         public static get PERSPECTIVE_CAMERA(): number {
             return Camera._PERSPECTIVE_CAMERA;
@@ -68,6 +69,9 @@
 
         public static get RIG_MODE_WEBVR(): number {
             return Camera._RIG_MODE_WEBVR;
+        }
+        public static get RIG_MODE_CUSTOM(): number {
+            return Camera._RIG_MODE_CUSTOM;
         }
 
         public static ForceAttachControlToAlwaysPreventDefault = false;
@@ -149,6 +153,8 @@
         public _alternateCamera: Camera;
 
         public customRenderTargets = new Array<RenderTargetTexture>();
+        // TODO: is this the same as customRenderTargets?, from looking at it's uses, likely not
+        public _outputBuffer:Nullable<WebGLBuffer> = null;
 
         // Observables
         public onViewMatrixChangedObservable = new Observable<Camera>();
@@ -157,7 +163,12 @@
         public onRestoreStateObservable = new Observable<Camera>();
 
         // Cache
-        private _computedViewMatrix = Matrix.Identity();
+        /**
+         * @hidden
+         * When false, _computedViewMatrix will directly correspond to the camera's view matrix 
+         */
+        public _updateViewMatrix = true;
+        public _computedViewMatrix = Matrix.Identity();
         public _projectionMatrix = new Matrix();
         private _doNotComputeProjectionMatrix = false;
         private _worldMatrix = Matrix.Identity();
@@ -450,6 +461,11 @@
         }
 
         public getViewMatrix(force?: boolean): Matrix {
+            // TODO this should be updated to mirror _doNotComputeProjectionMatrix
+            if(!this._updateViewMatrix){
+                return this._computedViewMatrix;
+            }
+
             if (!force && this._isSynchronizedViewMatrix()) {
                 return this._computedViewMatrix;
             }
@@ -696,7 +712,7 @@
             return (<TargetCamera>this._rigCameras[1]).getTarget();
         }
 
-        public setCameraRigMode(mode: number, rigParams: any): void {
+        public setCameraRigMode(mode: number, rigParams: {interaxialDistance?:number, rigCameras?: Array<Camera>, vrCameraMetrics?: VRCameraMetrics, vrDisplay?:VRDisplay, specs?: any, frameData?: any, parentCamera?: Camera}): void {
             if (this.cameraRigMode === mode) {
                 return;
             }
@@ -716,7 +732,14 @@
             this._cameraRigParams.stereoHalfAngle = Tools.ToRadians(this._cameraRigParams.interaxialDistance / 0.0637);
 
             // create the rig cameras, unless none
-            if (this.cameraRigMode !== Camera.RIG_MODE_NONE) {
+            if(this.cameraRigMode === Camera.RIG_MODE_CUSTOM){
+                // Set all rig cameras passed in on the camera (Used for webXR)
+                if(rigParams && rigParams.rigCameras){
+                    (<Array<Camera>>rigParams.rigCameras).forEach((camera)=>{
+                        this._rigCameras.push(camera);
+                    })
+                }
+            }else if (this.cameraRigMode !== Camera.RIG_MODE_NONE) {
                 let leftCamera = this.createRigCamera(this.name + "_L", 0);
                 let rightCamera = this.createRigCamera(this.name + "_R", 1);
                 if (leftCamera && rightCamera) {
