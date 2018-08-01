@@ -155,9 +155,10 @@ module BABYLON {
                             }
 
                             // Rotate around center of bounding box
-                            this._anchorMesh.addChild(this.attachedMesh);
-                            this._anchorMesh.rotationQuaternion!.multiplyToRef(this._tmpQuaternion, this._anchorMesh.rotationQuaternion!);
-                            this._anchorMesh.removeChild(this.attachedMesh);
+                            this.attachedMesh.rotationQuaternion.multiplyInPlace(this._tmpQuaternion)
+                            // this._anchorMesh.addChild(this.attachedMesh);
+                            // this._anchorMesh.rotationQuaternion!.multiplyToRef(this._tmpQuaternion, this._anchorMesh.rotationQuaternion!);
+                            // this._anchorMesh.removeChild(this.attachedMesh);
                         }
                         this.updateBoundingBox();
                     }
@@ -202,12 +203,15 @@ module BABYLON {
                                 // Scale from the position of the opposite corner                   
                                 box.absolutePosition.subtractToRef(this._anchorMesh.position, this._tmpVector);
                                 this._anchorMesh.position.subtractInPlace(this._tmpVector);
+                                
+                                var originalParent = this.attachedMesh.parent;
                                 this._anchorMesh.addChild(this.attachedMesh);
                                 this._anchorMesh.scaling.addInPlace(deltaScale);
                                 if (this._anchorMesh.scaling.x < 0 || this._anchorMesh.scaling.y < 0 || this._anchorMesh.scaling.z < 0) {
                                     this._anchorMesh.scaling.subtractInPlace(deltaScale);
                                 }
                                 this._anchorMesh.removeChild(this.attachedMesh);
+                                this.attachedMesh.setParent(originalParent);
                             }
                         })
 
@@ -248,9 +252,9 @@ module BABYLON {
             // Update bounding box positions
             this._renderObserver = this.gizmoLayer.originalScene.onBeforeRenderObservable.add(() => {
                 // Only update the bouding box if scaling has changed
-                if (this.attachedMesh && !this._existingMeshScale.equals(this.attachedMesh.scaling)) {
-                    this.updateBoundingBox();
-                }
+                // if (this.attachedMesh && !this._existingMeshScale.equals(this.attachedMesh.scaling)) {
+                //     this.updateBoundingBox();
+                // }
             })
             this.updateBoundingBox();
         }
@@ -259,8 +263,10 @@ module BABYLON {
             if (value) {
                 // Reset anchor mesh to match attached mesh's scale
                 // This is needed to avoid invalid box/sphere position on first drag
+                var oldParent = value.parent;
                 this._anchorMesh.addChild(value);
                 this._anchorMesh.removeChild(value);
+                value.setParent(oldParent);
                 this.updateBoundingBox();
             }
         }
@@ -285,6 +291,7 @@ module BABYLON {
          * Updates the bounding box information for the Gizmo
          */
         public updateBoundingBox(){
+            console.log("hit")
             this._update();
             if(this.attachedMesh){             
                 // Rotate based on axis
@@ -305,10 +312,13 @@ module BABYLON {
                 // Update bounding dimensions/positions   
                 var boundingMinMax = this.attachedMesh.getHierarchyBoundingVectors(!this.ignoreChildren);
                 boundingMinMax.max.subtractToRef(boundingMinMax.min, this._boundingDimensions);
-
+                
                 // Update gizmo to match bounding box scaling and rotation
                 this._lineBoundingBox.scaling.copyFrom(this._boundingDimensions);
                 this._lineBoundingBox.position.set((boundingMinMax.max.x + boundingMinMax.min.x) / 2, (boundingMinMax.max.y + boundingMinMax.min.y) / 2, (boundingMinMax.max.z + boundingMinMax.min.z) / 2);
+                if(this.attachedMesh.parent){
+                    this._lineBoundingBox.position.subtractInPlace(this.attachedMesh.parent.computeWorldMatrix().getTranslation());
+                }
                 this._rotateSpheresParent.position.copyFrom(this._lineBoundingBox.position);
                 this._scaleBoxesParent.position.copyFrom(this._lineBoundingBox.position);
                 this._lineBoundingBox.computeWorldMatrix();
