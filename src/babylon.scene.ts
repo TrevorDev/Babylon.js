@@ -2946,14 +2946,14 @@
             if (!this._frustumPlanes) {
                 this._frustumPlanes = Frustum.GetPlanes(this._transformMatrix);
             } else {
-                Frustum.GetPlanesToRef(this._transformMatrix, this._frustumPlanes);
+                //Frustum.GetPlanesToRef(this._transformMatrix, this._frustumPlanes);
             }
 
-            if (this.activeCamera && this.activeCamera._alternateCamera) {
-                let otherCamera = this.activeCamera._alternateCamera;
-                otherCamera.getViewMatrix().multiplyToRef(otherCamera.getProjectionMatrix(), Tmp.Matrix[0]);
-                Frustum.GetRightPlaneToRef(Tmp.Matrix[0], this._frustumPlanes[3]); // Replace right plane by second camera right plane
-            }
+            // if (this.activeCamera && this.activeCamera._alternateCamera) {
+            //     let otherCamera = this.activeCamera._alternateCamera;
+            //     otherCamera.getViewMatrix().multiplyToRef(otherCamera.getProjectionMatrix(), Tmp.Matrix[0]);
+            //     Frustum.GetRightPlaneToRef(Tmp.Matrix[0], this._frustumPlanes[3]); // Replace right plane by second camera right plane
+            // }
 
             if (this._sceneUbo.useUbo) {
                 this._sceneUbo.updateMatrix("viewProjection", this._transformMatrix);
@@ -4314,7 +4314,7 @@
             if (!this.activeCamera) {
                 return;
             }
-            this.setTransformMatrix(this.activeCamera.getViewMatrix(), this.activeCamera.getProjectionMatrix(force));
+            this.setTransformMatrix(this.activeCamera._computedViewMatrix, this.activeCamera.getProjectionMatrix(force));
         }
 
         /**
@@ -4326,6 +4326,7 @@
         }
         /** @hidden */
         public _allowPostProcessClear = true;
+        public lastBuf:any = null;
         private _renderForCamera(camera: Camera, rigParent?: Camera): void {
             if (camera && camera._skipRendering) {
                 return;
@@ -4339,101 +4340,113 @@
                 throw new Error("Active camera not set");
 
             // Viewport
-            engine.setViewport(this.activeCamera.viewport);
+            //engine.setViewport(this.activeCamera.viewport);
 
             // Camera
-            this.resetCachedMaterial();
+            //this.resetCachedMaterial();
             this._renderId++;
             this.updateTransformMatrix();
 
-            if (camera._alternateCamera) {
-                this.updateAlternateTransformMatrix(camera._alternateCamera);
-                this._alternateRendering = true;
-            }
+            // if (camera._alternateCamera) {
+            //     this.updateAlternateTransformMatrix(camera._alternateCamera);
+            //     this._alternateRendering = true;
+            // }
 
-            this.onBeforeCameraRenderObservable.notifyObservers(this.activeCamera);
+            // this.onBeforeCameraRenderObservable.notifyObservers(this.activeCamera);
 
             // Meshes
             this._evaluateActiveMeshes();
 
             // Software skinning
-            for (var softwareSkinnedMeshIndex = 0; softwareSkinnedMeshIndex < this._softwareSkinnedMeshes.length; softwareSkinnedMeshIndex++) {
-                var mesh = this._softwareSkinnedMeshes.data[softwareSkinnedMeshIndex];
+            // for (var softwareSkinnedMeshIndex = 0; softwareSkinnedMeshIndex < this._softwareSkinnedMeshes.length; softwareSkinnedMeshIndex++) {
+            //     var mesh = this._softwareSkinnedMeshes.data[softwareSkinnedMeshIndex];
 
-                mesh.applySkeleton(<Skeleton>mesh.skeleton);
-            }
+            //     mesh.applySkeleton(<Skeleton>mesh.skeleton);
+            // }
 
             // Render targets
-            this.onBeforeRenderTargetsRenderObservable.notifyObservers(this);
+            // this.onBeforeRenderTargetsRenderObservable.notifyObservers(this);
 
-            if (camera.customRenderTargets && camera.customRenderTargets.length > 0) {
-                this._renderTargets.concatWithNoDuplicate(camera.customRenderTargets);
+            // if (camera.customRenderTargets && camera.customRenderTargets.length > 0) {
+            //     this._renderTargets.concatWithNoDuplicate(camera.customRenderTargets);
+            // }
+
+            // if (rigParent && rigParent.customRenderTargets && rigParent.customRenderTargets.length > 0) {
+            //     this._renderTargets.concatWithNoDuplicate(rigParent.customRenderTargets);
+            // }
+
+            // if (this.renderTargetsEnabled) {
+            //     this._intermediateRendering = true;
+
+            //     if (this._renderTargets.length > 0) {
+            //         Tools.StartPerformanceCounter("Render targets", this._renderTargets.length > 0);
+            //         for (var renderIndex = 0; renderIndex < this._renderTargets.length; renderIndex++) {
+            //             let renderTarget = this._renderTargets.data[renderIndex];
+            //             if (renderTarget._shouldRender()) {
+            //                 this._renderId++;
+            //                 var hasSpecialRenderTargetCamera = renderTarget.activeCamera && renderTarget.activeCamera !== this.activeCamera;
+            //                 renderTarget.render((<boolean>hasSpecialRenderTargetCamera), this.dumpNextRenderTargets);
+            //             }
+            //         }
+            //         Tools.EndPerformanceCounter("Render targets", this._renderTargets.length > 0);
+
+            //         this._renderId++;
+            //     }
+
+            //     for (let step of this._cameraDrawRenderTargetStage) {
+            //         step.action(this.activeCamera);
+            //     }
+
+            //     this._intermediateRendering = false;
+
+            //     engine.restoreDefaultFramebuffer(); // Restore back buffer if needed
+            // }
+
+            //this.onAfterRenderTargetsRenderObservable.notifyObservers(this);
+
+            if(camera._outputBuffer && this.lastBuf != camera._outputBuffer){
+                // TODO: These calls likely should be done by engine, 
+                // maybe could modify the engine to get engine.restoreDefaultFramebuffer() to do this?
+                // restoreDefaultFramebuffer is already called above and in render() so it would be good to avoid multiple redundant binds
+
+                // Used for webXR to bind to xr layer buffer
+                this._engine._gl.bindFramebuffer(this._engine._gl.FRAMEBUFFER, camera._outputBuffer);
+                this.lastBuf = camera._outputBuffer;
+                console.log("hit")
+                this._engine._gl.viewport(camera.viewport.x, camera.viewport.y, camera.viewport.width, camera.viewport.height);
             }
-
-            if (rigParent && rigParent.customRenderTargets && rigParent.customRenderTargets.length > 0) {
-                this._renderTargets.concatWithNoDuplicate(rigParent.customRenderTargets);
-            }
-
-            if (this.renderTargetsEnabled) {
-                this._intermediateRendering = true;
-
-                if (this._renderTargets.length > 0) {
-                    Tools.StartPerformanceCounter("Render targets", this._renderTargets.length > 0);
-                    for (var renderIndex = 0; renderIndex < this._renderTargets.length; renderIndex++) {
-                        let renderTarget = this._renderTargets.data[renderIndex];
-                        if (renderTarget._shouldRender()) {
-                            this._renderId++;
-                            var hasSpecialRenderTargetCamera = renderTarget.activeCamera && renderTarget.activeCamera !== this.activeCamera;
-                            renderTarget.render((<boolean>hasSpecialRenderTargetCamera), this.dumpNextRenderTargets);
-                        }
-                    }
-                    Tools.EndPerformanceCounter("Render targets", this._renderTargets.length > 0);
-
-                    this._renderId++;
-                }
-
-                for (let step of this._cameraDrawRenderTargetStage) {
-                    step.action(this.activeCamera);
-                }
-
-                this._intermediateRendering = false;
-
-                engine.restoreDefaultFramebuffer(); // Restore back buffer if needed
-            }
-
-            this.onAfterRenderTargetsRenderObservable.notifyObservers(this);
 
             // Prepare Frame
-            if (this.postProcessManager) {
-                this.postProcessManager._prepareFrame();
-            }
+            // if (this.postProcessManager) {
+            //     this.postProcessManager._prepareFrame();
+            // }
 
             // Before Camera Draw
-            for (let step of this._beforeCameraDrawStage) {
-                step.action(this.activeCamera);
-            }
+            // for (let step of this._beforeCameraDrawStage) {
+            //     step.action(this.activeCamera);
+            // }
 
             // Render
-            this.onBeforeDrawPhaseObservable.notifyObservers(this);
-            this._renderingManager.render(null, null, true, true);
-            this.onAfterDrawPhaseObservable.notifyObservers(this);
+            //this.onBeforeDrawPhaseObservable.notifyObservers(this);
+            this._renderingManager.render(null, null, false, false);
+            //this.onAfterDrawPhaseObservable.notifyObservers(this);
 
             // After Camera Draw
-            for (let step of this._afterCameraDrawStage) {
-                step.action(this.activeCamera);
-            }
+            // for (let step of this._afterCameraDrawStage) {
+            //     step.action(this.activeCamera);
+            // }
 
             // Finalize frame
-            if (this.postProcessManager) {
-                this.postProcessManager._finalizeFrame(camera.isIntermediate);
-            }
+            // if (this.postProcessManager) {
+            //     this.postProcessManager._finalizeFrame(camera.isIntermediate);
+            // }
 
             // Reset some special arrays
-            this._renderTargets.reset();
+            //this._renderTargets.reset();
 
-            this._alternateRendering = false;
+            // this._alternateRendering = false;
 
-            this.onAfterCameraRenderObservable.notifyObservers(this.activeCamera);
+            // this.onAfterCameraRenderObservable.notifyObservers(this.activeCamera);
         }
 
         private _processSubCameras(camera: Camera): void {

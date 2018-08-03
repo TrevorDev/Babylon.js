@@ -597,6 +597,16 @@
 
         /** @hidden */
         public _gl: WebGLRenderingContext;
+        /** 
+         * @hidden
+         * TODO: frame should be of type XRFrame? once webXR spec is released as outlined here https://github.com/immersive-web/webxr/blob/master/explainer.md
+         */
+        public _onBeforeRenderObservable = new Observable<{time:number, frame?:any}>()
+        /**
+         * @hidden
+         * TODO: should be of type, any object that supports requestAnimationFrame
+         */
+        public _customRequester:any;
         private _renderingCanvas: Nullable<HTMLCanvasElement>;
         private _windowIsBackground = false;
         private _webGLVersion = 1.0;
@@ -1778,8 +1788,10 @@
             }
         }
 
-        /** @hidden */
-        public _renderLoop(): void {
+        /** @hidden
+         * TODO: frame should be of type XRFrame? once webXR spec is released as outlined here https://github.com/immersive-web/webxr/blob/master/explainer.md
+         */
+        public _renderLoop(time:any, frame:any): void {
             if (!this._contextWasLost) {
                 var shouldRender = true;
                 if (!this.renderEvenInBackground && this._windowIsBackground) {
@@ -1787,6 +1799,7 @@
                 }
 
                 if (shouldRender) {
+                    this._onBeforeRenderObservable.notifyObservers({time: time, frame: frame});
                     // Start new frame
                     this.beginFrame();
 
@@ -1804,9 +1817,16 @@
             if (this._activeRenderLoops.length > 0) {
                 // Register new frame
                 var requester = null;
-                if (this._vrDisplay && this._vrDisplay.isPresenting)
+                if(this._customRequester){
+                    requester = this._customRequester;
+                }else if (this._vrDisplay && this._vrDisplay.isPresenting){
                     requester = this._vrDisplay;
-                this._frameHandler = Tools.QueueNewFrame(this._bindedRenderFunction, requester);
+                }
+                if(this._customRequester == 1){
+
+                }else{
+                    this._frameHandler = Tools.QueueNewFrame(this._bindedRenderFunction, requester);
+                }
             } else {
                 this._renderingQueueLaunched = false;
             }
@@ -2221,8 +2241,8 @@
 
         private bindUnboundFramebuffer(framebuffer: Nullable<WebGLFramebuffer>) {
             if (this._currentFramebuffer !== framebuffer) {
-                this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, framebuffer);
-                this._currentFramebuffer = framebuffer;
+                // this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, framebuffer);
+                // this._currentFramebuffer = framebuffer;
             }
         }
 
@@ -2233,34 +2253,34 @@
          * @param onBeforeUnbind defines a function which will be called before the effective unbind
          */
         public unBindFramebuffer(texture: InternalTexture, disableGenerateMipMaps = false, onBeforeUnbind?: () => void): void {
-            this._currentRenderTarget = null;
+            // this._currentRenderTarget = null;
 
-            // If MSAA, we need to bitblt back to main texture
-            var gl = this._gl;
+            // // If MSAA, we need to bitblt back to main texture
+            // var gl = this._gl;
 
-            if (texture._MSAAFramebuffer) {
-                gl.bindFramebuffer(gl.READ_FRAMEBUFFER, texture._MSAAFramebuffer);
-                gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, texture._framebuffer);
-                gl.blitFramebuffer(0, 0, texture.width, texture.height,
-                    0, 0, texture.width, texture.height,
-                    gl.COLOR_BUFFER_BIT, gl.NEAREST);
-            }
+            // if (texture._MSAAFramebuffer) {
+            //     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, texture._MSAAFramebuffer);
+            //     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, texture._framebuffer);
+            //     gl.blitFramebuffer(0, 0, texture.width, texture.height,
+            //         0, 0, texture.width, texture.height,
+            //         gl.COLOR_BUFFER_BIT, gl.NEAREST);
+            // }
 
-            if (texture.generateMipMaps && !disableGenerateMipMaps && !texture.isCube) {
-                this._bindTextureDirectly(gl.TEXTURE_2D, texture, true);
-                gl.generateMipmap(gl.TEXTURE_2D);
-                this._bindTextureDirectly(gl.TEXTURE_2D, null);
-            }
+            // if (texture.generateMipMaps && !disableGenerateMipMaps && !texture.isCube) {
+            //     this._bindTextureDirectly(gl.TEXTURE_2D, texture, true);
+            //     gl.generateMipmap(gl.TEXTURE_2D);
+            //     this._bindTextureDirectly(gl.TEXTURE_2D, null);
+            // }
 
-            if (onBeforeUnbind) {
-                if (texture._MSAAFramebuffer) {
-                    // Bind the correct framebuffer
-                    this.bindUnboundFramebuffer(texture._framebuffer);
-                }
-                onBeforeUnbind();
-            }
+            // if (onBeforeUnbind) {
+            //     if (texture._MSAAFramebuffer) {
+            //         // Bind the correct framebuffer
+            //         this.bindUnboundFramebuffer(texture._framebuffer);
+            //     }
+            //     onBeforeUnbind();
+            // }
 
-            this.bindUnboundFramebuffer(null);
+            // this.bindUnboundFramebuffer(null);
         }
 
         /**
