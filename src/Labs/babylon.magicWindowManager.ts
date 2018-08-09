@@ -11,6 +11,7 @@ module BABYLON {
             private _gl:any;
             private _camera:FreeCamera;
             private _outputCanvas:Nullable<HTMLCanvasElement>;
+            private _originalCamera:Nullable<Camera> = null;
             /**
              * This will be true between the time enterXR() is called to the time the call completes.
              */
@@ -28,7 +29,7 @@ module BABYLON {
             
 
             constructor(public scene:BABYLON.Scene){  
-                this._camera = new BABYLON.FreeCamera("camera1", new BABYLON.Vector3(0, 0, 0), scene); 
+                this._camera = new BABYLON.FreeCamera("xrCamera", new BABYLON.Vector3(0, 0, 0), scene); 
                 this._camera.minZ = 0; 
                 this._camera.rotationQuaternion = new Quaternion()
                 this._camera.setCameraRigMode(Camera.RIG_MODE_CUSTOM, { parentCamera: this._camera, rigCameras: [new TargetCamera("left", this._camera.position.clone(), this._camera.getScene())] });
@@ -54,6 +55,18 @@ module BABYLON {
                     document.body.removeChild(this._outputCanvas);
                     this._outputCanvas = null;
                 }
+
+                // restore scene/engine
+                this.scene.activeCamera = this._originalCamera;
+                this.scene.autoClear = true;
+                this.scene.getEngine()._customRequester = null;
+                this.scene.getEngine()._windowIsBackground = false;
+
+                this.inMagicWindowMode = false;
+
+                this.scene.getEngine().bindUnboundFramebuffer(null)
+                this._xrSession.end();
+                this.scene.getEngine()._renderLoop(0,null)
                 return Promise.resolve();
             }
             enterXR():Promise<void>{
@@ -61,6 +74,8 @@ module BABYLON {
                     return Promise.resolve();
                 }
                 this._enteringXRMode = true;
+
+                this._originalCamera = this.scene.activeCamera
 
                 if(!this._outputCanvas){
                     this._outputCanvas = document.createElement('canvas');
@@ -82,11 +97,18 @@ module BABYLON {
                     console.log("created XR layer")
                     return this._xrSession.requestFrameOfReference('eye-level')
                 }).then((frameOfRef:any)=>{
+                    // Modify scene/engine state for xr mode
                     this.scene.activeCamera = this._camera;
                     this.scene.autoClear = false;
-                    this.scene.getEngine().getRenderingCanvas()!.style.cssText = "visibility:hidden"
-                    this.scene.getEngine()._customRequester = 1//this._xrSession
+                    this.scene.getEngine()._customRequester = this._xrSession
+                    this.scene.getEngine()._windowIsBackground = true;
+
+                    // Create renderloop
                     var rendLoop = (time:any, frame:any)=>{
+                        if(!this.inMagicWindowMode){
+                            return
+                        }
+
                         var renderInfo = {time: time, frame: frame};
                         if(!renderInfo.frame){
                             return;
@@ -117,17 +139,23 @@ module BABYLON {
                                 this._camera.rigCameras[i]._outputBuffer = this._xrSession.baseLayer.framebuffer;
                                 //console.log(this._camera.rigCameras[i].getViewMatrix().getTranslation())
                                 //this.scene._activeMeshesFrozen=true;
+                                // this.scene._renderForCamera(this._camera.rigCameras[i], undefined, true)
+                                // console.log("xr rendered")
+                                console.log("xr rendered")
                                 this.scene._renderForCamera(this._camera.rigCameras[i], undefined, true)
+                                //this.scene.render()
                             })
                         }
+
                         setTimeout(() => {
                             this._xrSession.requestAnimationFrame(rendLoop)
                         }, 100);
+                        
                     }
-                    this._xrSession.requestAnimationFrame(rendLoop)
-                    
+
                     this._enteringXRMode = false;
                     this.inMagicWindowMode = true;
+                    this._xrSession.requestAnimationFrame(rendLoop)
                 }).catch((e:any)=>{
                     this._enteringXRMode = false;
                     this.inMagicWindowMode = false;
