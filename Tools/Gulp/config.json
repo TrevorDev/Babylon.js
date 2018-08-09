@@ -103,6 +103,7 @@
             "anaglyph",
             "stereoscopic",
             "vr",
+            "labs",
             "virtualJoystick",
             "optimizations",
             "highlights",
@@ -1231,6 +1232,17 @@
             ],
             "shaders": [
                 "stereoscopicInterlace.fragment"
+            ]
+        },
+        "labs": {
+            "files": [
+                "../../src/Labs/babylon.magicWindowManager.js"
+            ],
+            "dependUpon": [
+                "core",
+                "freeCamera"
+            ],
+            "shaders": [
             ]
         },
         "vr": {

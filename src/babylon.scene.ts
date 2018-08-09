@@ -4326,6 +4326,7 @@
         }
         /** @hidden */
         public _allowPostProcessClear = true;
+        public lastBuf:any = null;
         private _renderForCamera(camera: Camera, rigParent?: Camera): void {
             if (camera && camera._skipRendering) {
                 return;
@@ -4398,10 +4399,21 @@
 
                 this._intermediateRendering = false;
 
-                engine.restoreDefaultFramebuffer(); // Restore back buffer if needed
+                //engine.restoreDefaultFramebuffer(); // Restore back buffer if needed
             }
 
             this.onAfterRenderTargetsRenderObservable.notifyObservers(this);
+
+            if(camera._outputBuffer && this.lastBuf != camera._outputBuffer){
+                // TODO: These calls likely should be done by engine, 
+                // maybe could modify the engine to get engine.restoreDefaultFramebuffer() to do this?
+                // restoreDefaultFramebuffer is already called above and in render() so it would be good to avoid multiple redundant binds
+
+                // Used for webXR to bind to xr layer buffer
+                this._engine._gl.bindFramebuffer(this._engine._gl.FRAMEBUFFER, camera._outputBuffer);
+                this.lastBuf = camera._outputBuffer;
+                this._engine._gl.viewport(camera.viewport.x, camera.viewport.y, camera.viewport.width, camera.viewport.height);
+            }
 
             // Prepare Frame
             if (this.postProcessManager) {
