@@ -4398,10 +4398,20 @@
 
                 this._intermediateRendering = false;
 
-                engine.restoreDefaultFramebuffer(); // Restore back buffer if needed
+                //engine.restoreDefaultFramebuffer(); // Restore back buffer if needed
             }
 
             this.onAfterRenderTargetsRenderObservable.notifyObservers(this);
+            console.log(camera.name)
+            if(camera._outputBuffer){
+                // TODO: These calls likely should be done by engine, 
+                // maybe could modify the engine to get engine.restoreDefaultFramebuffer() to do this?
+                // restoreDefaultFramebuffer is already called above and in render() so it would be good to avoid multiple redundant binds
+                
+                // Used for webXR to bind to xr layer buffer
+                this._engine._gl.bindFramebuffer(this._engine._gl.FRAMEBUFFER, camera._outputBuffer);
+                this._engine._gl.viewport(camera.viewport.x, camera.viewport.y, camera.viewport.width, camera.viewport.height);
+            }
 
             // Prepare Frame
             if (this.postProcessManager) {
@@ -4441,7 +4451,7 @@
                 this._renderForCamera(camera);
                 return;
             }
-
+            
             // rig cameras
             for (var index = 0; index < camera._rigCameras.length; index++) {
                 this._renderForCamera(camera._rigCameras[index], camera);
