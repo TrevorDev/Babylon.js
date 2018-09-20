@@ -1,5 +1,15 @@
 ﻿module BABYLON {
     /**
+     * Interface for any object that can request an animation frame (eg. window or vrDevice)
+     */
+    export interface IAnimationFrameRequester {
+        /**
+         * @see https://developer.mozilla.org/en-US/docs/Web/API/window/requestAnimationFrame
+         */
+        requestAnimationFrame: Function
+    }
+
+    /**
      * Interface containing an array of animations
      */
     export interface IAnimatable {
@@ -605,7 +615,7 @@
          * @param requester - the object that will request the next frame. Falls back to window.
          * @returns frame number
          */
-        public static QueueNewFrame(func: () => void, requester?: any): number {
+        public static QueueNewFrame(func: () => void, requester?: IAnimationFrameRequester): number {
             if (!Tools.IsWindowObjectExist()) {
                 return setTimeout(func, 16);
             }
@@ -617,17 +627,17 @@
             if (requester.requestAnimationFrame) {
                 return requester.requestAnimationFrame(func);
             }
-            else if (requester.msRequestAnimationFrame) {
-                return requester.msRequestAnimationFrame(func);
+            else if ((<any>requester).msRequestAnimationFrame) {
+                return (<any>requester).msRequestAnimationFrame(func);
             }
-            else if (requester.webkitRequestAnimationFrame) {
-                return requester.webkitRequestAnimationFrame(func);
+            else if ((<any>requester).webkitRequestAnimationFrame) {
+                return (<any>requester).webkitRequestAnimationFrame(func);
             }
-            else if (requester.mozRequestAnimationFrame) {
-                return requester.mozRequestAnimationFrame(func);
+            else if ((<any>requester).mozRequestAnimationFrame) {
+                return (<any>requester).mozRequestAnimationFrame(func);
             }
-            else if (requester.oRequestAnimationFrame) {
-                return requester.oRequestAnimationFrame(func);
+            else if ((<any>requester).oRequestAnimationFrame) {
+                return (<any>requester).oRequestAnimationFrame(func);
             }
             else {
                 return window.setTimeout(func, 16);

@@ -130,6 +130,7 @@
 - Added optional alphaFilter parameter to ```CreateGroundFromHeightMap``` to allow for heightmaps to be created that ignore any transparent data ([Postman-nz](https://github.com/Postman-nz))
 - Fixed renormalization of mesh weights to in cleanMatrixWeights function. ([Bolloxim](https://github.com/Bolloxim))
 - Added a validationSkin function to report out any errors on skinned meshes. ([Bolloxim](https://github.com/Bolloxim))
+- Add customAnimationFrameRequester to engine ([TrevorDev](https://github.com/TrevorDev))
 
 
 ### glTF Loader
