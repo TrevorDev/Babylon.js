@@ -643,6 +643,10 @@ module BABYLON {
 
         /** @hidden */
         public _gl: WebGLRenderingContext;
+        /**
+         * If set, will be used to request the next animation frame for the render loop
+         */
+        public customAnimationFrameRequester:Nullable<IAnimationFrameRequester> = null;
         private _renderingCanvas: Nullable<HTMLCanvasElement>;
         private _windowIsBackground = false;
         private _webGLVersion = 1.0;
@@ -1874,7 +1878,10 @@ module BABYLON {
             if (this._activeRenderLoops.length > 0) {
                 // Register new frame
                 var requester = null;
-                if (this._vrDisplay && this._vrDisplay.isPresenting) {
+
+                if(this.customAnimationFrameRequester){
+                    requester = this.customAnimationFrameRequester;
+                }else if (this._vrDisplay && this._vrDisplay.isPresenting){
                     requester = this._vrDisplay;
                 }
                 this._frameHandler = Tools.QueueNewFrame(this._bindedRenderFunction, requester);
