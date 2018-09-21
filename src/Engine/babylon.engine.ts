@@ -617,6 +617,7 @@
          * Observable raised when the engine begins a new frame
          */
         public onBeginFrameObservable = new Observable<Engine>();
+        public onFrameObservable = new Observable<any>();
 
         /**
          * Observable raised when the engine ends the current frame
@@ -1844,6 +1845,7 @@
                 }
 
                 if (shouldRender) {
+                    this.onFrameObservable.notifyObservers(arguments);
                     // Start new frame
                     this.beginFrame();
 
