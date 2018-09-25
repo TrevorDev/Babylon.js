@@ -2413,16 +2413,16 @@
          * Unbind the current render target and bind the default framebuffer
          */
         public restoreDefaultFramebuffer(): void {
-            if (this._currentRenderTarget) {
-                this.unBindFramebuffer(this._currentRenderTarget);
-            } else {
-                this.bindUnboundFramebuffer(null);
-            }
-            if (this._cachedViewport) {
-                this.setViewport(this._cachedViewport);
-            }
+            // if (this._currentRenderTarget) {
+            //     this.unBindFramebuffer(this._currentRenderTarget);
+            // } else {
+            //     this.bindUnboundFramebuffer(null);
+            // }
+            // if (this._cachedViewport) {
+            //     this.setViewport(this._cachedViewport);
+            // }
 
-            this.wipeCaches();
+            //this.wipeCaches();
         }
 
         // UBOs

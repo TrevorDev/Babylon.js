@@ -237,11 +237,15 @@ module BABYLON {
          * @param engine defines the engine to use
          * @param dataSource defines the type of data that will be used
          */
-        constructor(engine: Engine, dataSource: number) {
+        constructor(engine: Engine, dataSource: number, webGLTexture?:WebGLTexture) {
             this._engine = engine;
             this._dataSource = dataSource;
-
-            this._webGLTexture = engine._createTexture();
+            if(webGLTexture){
+                this._webGLTexture = webGLTexture;
+                this._framebuffer = webGLTexture;
+            }else{
+                this._webGLTexture = engine._createTexture();
+            }
         }
 
         /**
