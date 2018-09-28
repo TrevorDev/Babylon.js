@@ -204,6 +204,10 @@ module BABYLON {
          * else in the scene.
          */
         public customRenderTargets = new Array<RenderTargetTexture>();
+        /**
+         * When set, the camera will render to this render target instead of the default
+         */
+        public customDefaultRenderTarget:Nullable<RenderTargetTexture> = null;
 
         /**
          * Observable triggered when the camera view matrix has changed.

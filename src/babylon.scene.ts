@@ -4250,7 +4250,7 @@ module BABYLON {
                 throw new Error("Active camera not set");
             }
 
-            // Viewport
+            // Viewport            
             engine.setViewport(this.activeCamera.viewport);
 
             // Camera
@@ -4315,7 +4315,14 @@ module BABYLON {
 
                 this._intermediateRendering = false;
 
-                engine.restoreDefaultFramebuffer(); // Restore back buffer if needed
+                if(this.activeCamera.customDefaultRenderTarget){
+                    var internalTexture = this.activeCamera.customDefaultRenderTarget.getInternalTexture()
+                    if(internalTexture){
+                        engine.bindFramebuffer(internalTexture);
+                    }
+                }else{
+                    engine.restoreDefaultFramebuffer(); // Restore back buffer if needed
+                }                
             }
 
             this.onAfterRenderTargetsRenderObservable.notifyObservers(this);
