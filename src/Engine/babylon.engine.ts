@@ -624,7 +624,7 @@ module BABYLON {
          */
         public onBeginFrameObservable = new Observable<Engine>();
         public frameBeginTime:DOMHighResTimeStamp = 0;
-        public frameBeginFrame:Nullable<any> = null;
+        public frameBeginXRFrame:Nullable<any> = null;
 
         /**
          * Observable raised when the engine ends the current frame
@@ -1864,7 +1864,7 @@ module BABYLON {
 
                 if (shouldRender) {
                     this.frameBeginTime = time;
-                    this.frameBeginFrame = frame;
+                    this.frameBeginXRFrame = frame;
                     // Start new frame
                     this.beginFrame();
 
