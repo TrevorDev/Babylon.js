@@ -236,16 +236,13 @@ module BABYLON {
          * Creates a new InternalTexture
          * @param engine defines the engine to use
          * @param dataSource defines the type of data that will be used
+         * @param delayAllocation if the texture allocation should be delayed (default: false)
          */
-        constructor(engine: Engine, dataSource: number, webGLTexture?:WebGLTexture) {
+        constructor(engine: Engine, dataSource: number, delayAllocation = false) {
             this._engine = engine;
             this._dataSource = dataSource;
-            if(webGLTexture){
-                this._webGLTexture = webGLTexture;
-                this._framebuffer = webGLTexture;
-            }else{
-                this._webGLTexture = engine._createTexture();
-            }
+
+            this._webGLTexture = engine._createTexture();
         }
 
         /**

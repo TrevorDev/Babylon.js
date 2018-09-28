@@ -99,6 +99,22 @@ module BABYLON {
     }
 
     export class XRSessionManager {
-        
+        static CreateRenderTargetTextureFromSession(session:any, scene:BABYLON.Scene){
+            // Create internal texture
+            var internalTexture = new BABYLON.InternalTexture(scene.getEngine(), BABYLON.InternalTexture.DATASOURCE_UNKNOWN, true)
+            internalTexture.width = session.baseLayer.framebufferWidth
+            internalTexture.height = session.baseLayer.framebufferHeight
+            internalTexture._framebuffer = session.baseLayer.framebuffer;
+
+            // Create render target texture from the internal texture
+            var renderTargetTexture = new BABYLON.RenderTargetTexture("XR renderTargetTexture", {width: internalTexture.width, height: internalTexture.height},scene)
+            renderTargetTexture._texture = internalTexture;
+
+            return renderTargetTexture;
+        }
+
+        constructor(){
+            
+        }
     }
 }
