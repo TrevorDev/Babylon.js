@@ -623,7 +623,8 @@ module BABYLON {
          * Observable raised when the engine begins a new frame
          */
         public onBeginFrameObservable = new Observable<Engine>();
-        public onFrameObservable = new Observable<any>();
+        public frameBeginTime:DOMHighResTimeStamp = 0;
+        public frameBeginFrame:Nullable<any> = null;
 
         /**
          * Observable raised when the engine ends the current frame
@@ -1854,7 +1855,7 @@ module BABYLON {
         }
 
         /** @hidden */
-        public _renderLoop(): void {
+        public _renderLoop(time:DOMHighResTimeStamp, frame?: any): void {
             if (!this._contextWasLost) {
                 var shouldRender = true;
                 if (!this.renderEvenInBackground && this._windowIsBackground) {
@@ -1862,7 +1863,8 @@ module BABYLON {
                 }
 
                 if (shouldRender) {
-                    this.onFrameObservable.notifyObservers(arguments);
+                    this.frameBeginTime = time;
+                    this.frameBeginFrame = frame;
                     // Start new frame
                     this.beginFrame();
 
@@ -2429,16 +2431,16 @@ module BABYLON {
          * Unbind the current render target and bind the default framebuffer
          */
         public restoreDefaultFramebuffer(): void {
-            // if (this._currentRenderTarget) {
-            //     this.unBindFramebuffer(this._currentRenderTarget);
-            // } else {
-            //     this.bindUnboundFramebuffer(null);
-            // }
-            // if (this._cachedViewport) {
-            //     this.setViewport(this._cachedViewport);
-            // }
+            if (this._currentRenderTarget) {
+                this.unBindFramebuffer(this._currentRenderTarget);
+            } else {
+                this.bindUnboundFramebuffer(null);
+            }
+            if (this._cachedViewport) {
+                this.setViewport(this._cachedViewport);
+            }
 
-            //this.wipeCaches();
+            this.wipeCaches();
         }
 
         // UBOs
