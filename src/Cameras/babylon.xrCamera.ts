@@ -1,11 +1,11 @@
 module BABYLON {
-    export class WebXRCameraOptions {
+    export class XRCameraOptions {
         initialPosition?:Vector3;
         initialPupilDistance?:number;
         initialViewCount?:number;
     }
-    export class WebXRCamera extends FreeCamera {
-        constructor(name:string, scene:BABYLON.Scene, options?:WebXRCameraOptions){
+    export class XRCamera extends FreeCamera {
+        constructor(name:string, scene:BABYLON.Scene, options?:XRCameraOptions){
             // Parse options
             if(!options){
                 options = {}
@@ -96,5 +96,9 @@ module BABYLON {
                 
             }
         }
+    }
+
+    export class XRSessionManager {
+        
     }
 }

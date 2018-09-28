@@ -745,7 +745,7 @@
                 "../../src/Cameras/babylon.followCamera.js",
                 "../../src/Cameras/babylon.universalCamera.js",
                 "../../src/Cameras/babylon.gamepadCamera.js",
-                "../../src/Cameras/babylon.webXRCamera.js"
+                "../../src/Cameras/babylon.xrCamera.js"
             ],
             "dependUpon": [
                 "gamepad"
