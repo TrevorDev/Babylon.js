@@ -250,7 +250,8 @@ module BABYLON {
 
         protected _globalPosition = Vector3.Zero();
 
-        private _computedViewMatrix = Matrix.Identity();
+        /** @hidden */
+        public _computedViewMatrix = Matrix.Identity();
         private _doNotComputeProjectionMatrix = false;
         private _transformMatrix = Matrix.Zero();
         private _frustumPlanes: Plane[];
