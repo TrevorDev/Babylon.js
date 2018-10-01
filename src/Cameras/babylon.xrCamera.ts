@@ -155,7 +155,8 @@ module BABYLON {
         exitXR(){
             this._scene.getEngine().customAnimationFrameRequester = null;
             this._xrSession.end()
-            
+            // Restore frame buffer to avoid clear on xr framebuffer after session end
+            this._scene.getEngine().restoreDefaultFramebuffer();
             // Need to restart render loop as after calling session.end the last request for new frame will never call callback
             this._scene.getEngine()._renderLoop(0)
         }
