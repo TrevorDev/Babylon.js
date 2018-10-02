@@ -101,7 +101,7 @@ module BABYLON {
     }
 
     export class XRSessionManagerEnterXROptions {
-        outputCanvas?:HTMLCanvasElement
+        requestSessionOptions:any
     }
 
     export class XRSessionManager {
@@ -131,11 +131,8 @@ module BABYLON {
         }
 
         enterXR(options:XRSessionManagerEnterXROptions):Promise<any>{
-            var arMode = true;
-
             // initialize session
-            this._outputContext = options.outputCanvas!.getContext('xrpresent')
-            return this._xrDevice.requestSession({immersive: !arMode, environmentIntegration: arMode, outputContext: this._outputContext}).then((session:any)=>{
+            return this._xrDevice.requestSession(options.requestSessionOptions).then((session:any)=>{
                 this._xrSession = session;
                 this._xrSession.baseLayer = new XRWebGLLayer(this._xrSession, this._scene.getEngine()._gl);
                 return this._xrSession.requestFrameOfReference('eye-level');
@@ -147,18 +144,51 @@ module BABYLON {
 
                 // Create render target texture from xr's webgl render target
                 this.sessionRenderTargetTexture = XRSessionManager.CreateRenderTargetTextureFromSession(this._xrSession, this._scene);
-                this._outputContext.width = this.sessionRenderTargetTexture.getRenderWidth();
-                this._outputContext.height =this.sessionRenderTargetTexture.getRenderHeight();
             })
         }
 
         exitXR(){
-            this._scene.getEngine().customAnimationFrameRequester = null;
-            this._xrSession.end()
-            // Restore frame buffer to avoid clear on xr framebuffer after session end
-            this._scene.getEngine().restoreDefaultFramebuffer();
-            // Need to restart render loop as after calling session.end the last request for new frame will never call callback
-            this._scene.getEngine()._renderLoop(0)
+            return new Promise((res)=>{
+                this._scene.getEngine().customAnimationFrameRequester = null;
+                this._xrSession.end()
+                // Restore frame buffer to avoid clear on xr framebuffer after session end
+                this._scene.getEngine().restoreDefaultFramebuffer();
+                // Need to restart render loop as after calling session.end the last request for new frame will never call callback
+                this._scene.getEngine()._renderLoop(0)
+                res();
+            })
+        }
+
+        environmentPointHitTest(ray:BABYLON.Ray):Promise<Nullable<Vector3>>{
+            return new Promise((res, rej)=>{
+                // Compute left handed inputs to request hit test
+                var origin = new Float32Array([ray.origin.x, ray.origin.y, ray.origin.z]);
+                var direction = new Float32Array([ray.direction.x, ray.direction.y, ray.direction.z]);
+                //var transformMatrix = new BABYLON.Matrix().m;
+                if (!this._scene.useRightHandedSystem) {
+                    origin[2] *= -1
+                    direction[2] *= -1
+                }
+
+                // Fire hittest
+                // This currently throws undefined sometimetimes
+                this._xrSession.requestHitTest(origin, direction, this.frameOfReference)
+                .then((hits:any)=>{
+                    if(hits.length > 0){
+                        var mat = new BABYLON.Matrix()
+                        BABYLON.Matrix.FromFloat32ArrayToRefScaled(hits[0].hitMatrix, 0, 1.0, mat)
+                        var ret = mat.getTranslation();
+                        if (!this._scene.useRightHandedSystem) {
+                            ret.z *= -1;
+                        }
+                        res(ret);
+                    }else{
+                        res(null)
+                    }
+                }).catch((e:Error)=>{
+                    res(null)
+                })
+            })
         }
 
         static CreateRenderTargetTextureFromSession(session:any, scene:BABYLON.Scene){
