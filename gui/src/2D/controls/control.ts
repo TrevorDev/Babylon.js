@@ -175,11 +175,7 @@ export class Control {
         this._markAsDirty();
     }
 
-<<<<<<< HEAD
     /** Gets or sets a value indicating the scale factor on X axis (1 by default)
-=======
-    /** Gets or sets a value indicating the scale factor on X axis (1 by default) 
->>>>>>> add removed
      * @see http://doc.babylonjs.com/how_to/gui#rotation-and-scaling
     */
     public get scaleX(): number {
@@ -196,11 +192,7 @@ export class Control {
         this._markMatrixAsDirty();
     }
 
-<<<<<<< HEAD
     /** Gets or sets a value indicating the scale factor on Y axis (1 by default)
-=======
-    /** Gets or sets a value indicating the scale factor on Y axis (1 by default) 
->>>>>>> add removed
      * @see http://doc.babylonjs.com/how_to/gui#rotation-and-scaling
     */
     public get scaleY(): number {
@@ -217,11 +209,7 @@ export class Control {
         this._markMatrixAsDirty();
     }
 
-<<<<<<< HEAD
     /** Gets or sets the rotation angle (0 by default)
-=======
-    /** Gets or sets the rotation angle (0 by default) 
->>>>>>> add removed
      * @see http://doc.babylonjs.com/how_to/gui#rotation-and-scaling
     */
     public get rotation(): number {
@@ -272,13 +260,8 @@ export class Control {
         this._markMatrixAsDirty();
     }
 
-<<<<<<< HEAD
     /**
      * Gets or sets the horizontal alignment
-=======
-    /** 
-     * Gets or sets the horizontal alignment 
->>>>>>> add removed
      * @see http://doc.babylonjs.com/how_to/gui#alignments
      */
     public get horizontalAlignment(): number {
@@ -294,13 +277,8 @@ export class Control {
         this._markAsDirty();
     }
 
-<<<<<<< HEAD
     /**
      * Gets or sets the vertical alignment
-=======
-    /** 
-     * Gets or sets the vertical alignment 
->>>>>>> add removed
      * @see http://doc.babylonjs.com/how_to/gui#alignments
      */
     public get verticalAlignment(): number {
@@ -316,24 +294,15 @@ export class Control {
         this._markAsDirty();
     }
 
-<<<<<<< HEAD
     /**
      * Gets or sets control width
-=======
-    /** 
-     * Gets or sets control width 
->>>>>>> add removed
      * @see http://doc.babylonjs.com/how_to/gui#position-and-size
      */
     public get width(): string | number {
         return this._width.toString(this._host);
     }
 
-<<<<<<< HEAD
     /**
-=======
-    /** 
->>>>>>> add removed
      * Gets control width in pixel
      * @see http://doc.babylonjs.com/how_to/gui#position-and-size
      */
@@ -351,24 +320,15 @@ export class Control {
         }
     }
 
-<<<<<<< HEAD
     /**
      * Gets or sets control height
-=======
-    /** 
-     * Gets or sets control height 
->>>>>>> add removed
      * @see http://doc.babylonjs.com/how_to/gui#position-and-size
      */
     public get height(): string | number {
         return this._height.toString(this._host);
     }
 
-<<<<<<< HEAD
     /**
-=======
-    /** 
->>>>>>> add removed
      * Gets control height in pixel
      * @see http://doc.babylonjs.com/how_to/gui#position-and-size
      */
@@ -750,11 +710,7 @@ export class Control {
     }
 
     public set isEnabled(value: boolean) {
-<<<<<<< HEAD
         if (this._isEnabled === value) {
-=======
-        if(this._isEnabled === value){
->>>>>>> add removed
             return;
         }
 
@@ -767,11 +723,7 @@ export class Control {
     }
 
     public set disabledColor(value: string) {
-<<<<<<< HEAD
         if (this._disabledColor === value) {
-=======
-        if(this._disabledColor === value){
->>>>>>> add removed
             return;
         }
 
@@ -817,13 +769,8 @@ export class Control {
         return this.parent.isAscendant(container);
     }
 
-<<<<<<< HEAD
     /**
      * Gets coordinates in local control space
-=======
-    /** 
-     * Gets coordinates in local control space 
->>>>>>> add removed
      * @param globalCoordinates defines the coordinates to transform
      * @returns the new coordinates in local space
      */
@@ -835,13 +782,8 @@ export class Control {
         return result;
     }
 
-<<<<<<< HEAD
     /**
      * Gets coordinates in local control space
-=======
-    /** 
-     * Gets coordinates in local control space 
->>>>>>> add removed
      * @param globalCoordinates defines the coordinates to transform
      * @param result defines the target vector2 where to store the result
      * @returns the current control
@@ -852,13 +794,8 @@ export class Control {
         return this;
     }
 
-<<<<<<< HEAD
     /**
      * Gets coordinates in parent local control space
-=======
-    /** 
-     * Gets coordinates in parent local control space 
->>>>>>> add removed
      * @param globalCoordinates defines the coordinates to transform
      * @returns the new coordinates in parent local space
      */
@@ -956,16 +893,12 @@ export class Control {
     /** @hidden */
     public _markMatrixAsDirty(): void {
         this._isMatrixDirty = true;
-<<<<<<< HEAD
         this._flagDescendantsAsMatrixDirty();
     }
 
     /** @hidden */
     public _flagDescendantsAsMatrixDirty(): void {
         // No child
-=======
-        this._markAsDirty();
->>>>>>> add removed
     }
 
     /** @hidden */
@@ -1022,10 +955,7 @@ export class Control {
             this._cachedOffsetX = offsetX;
             this._cachedOffsetY = offsetY;
             this._isMatrixDirty = false;
-<<<<<<< HEAD
             this._flagDescendantsAsMatrixDirty();
-=======
->>>>>>> add removed
 
             Matrix2D.ComposeToRef(-offsetX, -offsetY, this._rotation, this._scaleX, this._scaleY, this._root ? this._root._transformMatrix : null, this._transformMatrix);
 
@@ -1169,11 +1099,7 @@ export class Control {
 
         switch (this.horizontalAlignment) {
             case Control.HORIZONTAL_ALIGNMENT_LEFT:
-<<<<<<< HEAD
                 x = 0;
-=======
-                x = 0
->>>>>>> add removed
                 break;
             case Control.HORIZONTAL_ALIGNMENT_RIGHT:
                 x = parentWidth - width;
@@ -1292,11 +1218,7 @@ export class Control {
 
     /** @hidden */
     public _processPicking(x: number, y: number, type: number, pointerId: number, buttonIndex: number): boolean {
-<<<<<<< HEAD
         if (!this._isEnabled) {
-=======
-        if(!this._isEnabled){
->>>>>>> add removed
             return false;
         }
         if (!this.isHitTestVisible || !this.isVisible || this._doNotRender) {
@@ -1316,20 +1238,12 @@ export class Control {
     public _onPointerMove(target: Control, coordinates: Vector2): void {
         var canNotify: boolean = this.onPointerMoveObservable.notifyObservers(coordinates, -1, target, this);
 
-<<<<<<< HEAD
         if (canNotify && this.parent != null) { this.parent._onPointerMove(target, coordinates); }
-=======
-        if (canNotify && this.parent != null) this.parent._onPointerMove(target, coordinates);
->>>>>>> add removed
     }
 
     /** @hidden */
     public _onPointerEnter(target: Control): boolean {
-<<<<<<< HEAD
         if (!this._isEnabled) {
-=======
-        if(!this._isEnabled){
->>>>>>> add removed
             return false;
         }
         if (this._enterCount > 0) {
@@ -1343,33 +1257,21 @@ export class Control {
 
         var canNotify: boolean = this.onPointerEnterObservable.notifyObservers(this, -1, target, this);
 
-<<<<<<< HEAD
         if (canNotify && this.parent != null) { this.parent._onPointerEnter(target); }
-=======
-        if (canNotify && this.parent != null) this.parent._onPointerEnter(target);
->>>>>>> add removed
 
         return true;
     }
 
     /** @hidden */
     public _onPointerOut(target: Control): void {
-<<<<<<< HEAD
         if (!this._isEnabled) {
-=======
-        if(!this._isEnabled){
->>>>>>> add removed
             return;
         }
         this._enterCount = 0;
 
         var canNotify: boolean = this.onPointerOutObservable.notifyObservers(this, -1, target, this);
 
-<<<<<<< HEAD
         if (canNotify && this.parent != null) { this.parent._onPointerOut(target); }
-=======
-        if (canNotify && this.parent != null) this.parent._onPointerOut(target);
->>>>>>> add removed
     }
 
     /** @hidden */
@@ -1388,22 +1290,14 @@ export class Control {
 
         var canNotify: boolean = this.onPointerDownObservable.notifyObservers(new Vector2WithInfo(coordinates, buttonIndex), -1, target, this);
 
-<<<<<<< HEAD
         if (canNotify && this.parent != null) { this.parent._onPointerDown(target, coordinates, pointerId, buttonIndex); }
-=======
-        if (canNotify && this.parent != null) this.parent._onPointerDown(target, coordinates, pointerId, buttonIndex);
->>>>>>> add removed
 
         return true;
     }
 
     /** @hidden */
     public _onPointerUp(target: Control, coordinates: Vector2, pointerId: number, buttonIndex: number, notifyClick: boolean): void {
-<<<<<<< HEAD
         if (!this._isEnabled) {
-=======
-        if(!this._isEnabled){
->>>>>>> add removed
             return;
         }
         this._downCount = 0;
@@ -1416,11 +1310,7 @@ export class Control {
         }
         var canNotify: boolean = this.onPointerUpObservable.notifyObservers(new Vector2WithInfo(coordinates, buttonIndex), -1, target, this);
 
-<<<<<<< HEAD
         if (canNotify && this.parent != null) { this.parent._onPointerUp(target, coordinates, pointerId, buttonIndex, canNotifyClick); }
-=======
-        if (canNotify && this.parent != null) this.parent._onPointerUp(target, coordinates, pointerId, buttonIndex, canNotifyClick);
->>>>>>> add removed
     }
 
     /** @hidden */
@@ -1436,11 +1326,7 @@ export class Control {
 
     /** @hidden */
     public _processObservables(type: number, x: number, y: number, pointerId: number, buttonIndex: number): boolean {
-<<<<<<< HEAD
         if (!this._isEnabled) {
-=======
-        if(!this._isEnabled){
->>>>>>> add removed
             return false;
         }
         this._dummyVector2.copyFromFloats(x, y);
@@ -1598,13 +1484,7 @@ export class Control {
         Control._FontHeightSizes[font] = result;
 
         return result;
-<<<<<<< HEAD
     }
-=======
-    };
-
-
->>>>>>> add removed
 
     /**
      * Creates a stack panel that can be used to render headers
