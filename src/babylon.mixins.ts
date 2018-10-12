@@ -181,7 +181,7 @@ interface WebGLUniformLocation {
 // WebXR
 interface XRDevice {
     requestSession(options: XRSessionCreationOptions): Promise<XRSession>;
-    supportsSession(options: XRSessionCreationOptions):Promise<void>;
+    supportsSession(options: XRSessionCreationOptions): Promise<void>;
 }
 interface XRSession {
     baseLayer: XRWebGLLayer;
@@ -194,7 +194,7 @@ interface XRSession {
 interface XRSessionCreationOptions {
     outputContext?: WebGLRenderingContext | null;
     immersive?: boolean;
-    environmentIntegration?:boolean;
+    environmentIntegration?: boolean;
 }
 interface XRLayer {
     getViewport: Function;
