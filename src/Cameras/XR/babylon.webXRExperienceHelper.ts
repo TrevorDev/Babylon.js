@@ -49,7 +49,7 @@ module BABYLON {
          */
         public onStateChangedObservable = new Observable<WebXRState>();
 
-        private _sessionManager: WebXRSessionManager;
+        public sessionManager: WebXRSessionManager;
 
         private _nonVRCamera: Nullable<Camera> = null;
         private _originalSceneAutoClear = true;
@@ -63,7 +63,7 @@ module BABYLON {
          */
         public static CreateAsync(scene: BABYLON.Scene): Promise<WebXRExperienceHelper> {
             var helper = new WebXRExperienceHelper(scene);
-            return helper._sessionManager.initialize().then(() => {
+            return helper.sessionManager.initialize().then(() => {
                 helper._supported = true;
                 return helper;
             }).catch(() => {
@@ -77,7 +77,7 @@ module BABYLON {
          */
         private constructor(private scene: BABYLON.Scene) {
             this.camera = new BABYLON.WebXRCamera("", scene);
-            this._sessionManager = new BABYLON.WebXRSessionManager(scene);
+            this.sessionManager = new BABYLON.WebXRSessionManager(scene);
             this.container = new AbstractMesh("", scene);
         }
 
@@ -87,7 +87,7 @@ module BABYLON {
          */
         public exitXR() {
             this._setState(WebXRState.EXITING_XR);
-            return this._sessionManager.exitXR();
+            return this.sessionManager.exitXR();
         }
 
         /**
@@ -99,7 +99,7 @@ module BABYLON {
         public enterXR(sessionCreationOptions: XRSessionCreationOptions, frameOfReference: string) {
             this._setState(WebXRState.ENTERING_XR);
 
-            return this._sessionManager.enterXR(sessionCreationOptions, frameOfReference).then(() => {
+            return this.sessionManager.enterXR(sessionCreationOptions, frameOfReference).then(() => {
                 // Cache pre xr scene settings
                 this._originalSceneAutoClear = this.scene.autoClear;
                 this._nonVRCamera = this.scene.activeCamera;
@@ -108,11 +108,11 @@ module BABYLON {
                 this.scene.autoClear = false;
                 this.scene.activeCamera = this.camera;
 
-                this._sessionManager.onXRFrameObservable.add(() => {
-                    this.camera.updateFromXRSessionManager(this._sessionManager);
+                this.sessionManager.onXRFrameObservable.add(() => {
+                    this.camera.updateFromXRSessionManager(this.sessionManager);
                 });
 
-                this._sessionManager.onXRSessionEnded.addOnce(() => {
+                this.sessionManager.onXRSessionEnded.addOnce(() => {
                     // Reset camera rigs output render target to ensure sessions render target is not drawn after it ends
                     this.camera.rigCameras.forEach((c) => {
                         c.outputRenderTarget = null;
@@ -121,7 +121,7 @@ module BABYLON {
                     // Restore scene settings
                     this.scene.autoClear = this._originalSceneAutoClear;
                     this.scene.activeCamera = this._nonVRCamera;
-                    this._sessionManager.onXRFrameObservable.clear();
+                    this.sessionManager.onXRFrameObservable.clear();
 
                     this._setState(WebXRState.NOT_IN_XR);
                 });
@@ -138,7 +138,7 @@ module BABYLON {
             if (!this._supported) {
                 return Promise.resolve(false);
             }
-            return this._sessionManager.supportsSession(options);
+            return this.sessionManager.supportsSession(options);
         }
 
         /**
@@ -148,7 +148,7 @@ module BABYLON {
             this.camera.dispose();
             this.container.dispose();
             this.onStateChangedObservable.clear();
-            this._sessionManager.dispose();
+            this.sessionManager.dispose();
         }
     }
 }

@@ -86,7 +86,7 @@ module BABYLON {
                     renderFunction: (timestamp: number, xrFrame: Nullable<XRFrame>) => {
                         // Store the XR frame in the manager to be consumed by the XR camera to update pose
                         this._currentXRFrame = xrFrame;
-                        this.onXRFrameObservable.notifyObservers(null);
+                        this.onXRFrameObservable.notifyObservers(null);                        
                         this.scene.getEngine()._renderLoop();
                     }
                 };
