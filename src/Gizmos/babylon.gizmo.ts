@@ -132,4 +132,37 @@ module BABYLON {
             }
         }
     }
+
+    export class LightGizmo extends Gizmo {
+        private _box:Mesh;
+        constructor(gizmoLayer?:UtilityLayerRenderer){
+            super(gizmoLayer)
+            this._box = BABYLON.Mesh.CreateBox("light", 0.02, this.gizmoLayer.utilityLayerScene);
+            this._box.material = new BABYLON.StandardMaterial("", this.gizmoLayer.utilityLayerScene);
+            (this._box.material as StandardMaterial).emissiveColor = new BABYLON.Color3(1,1,1);
+            this._rootMesh.addChild(this._box);
+            this.attachedMesh = new BABYLON.AbstractMesh("", this.gizmoLayer.utilityLayerScene);
+        }
+        private _light:Nullable<Light> = null;
+        public set light(light:Nullable<Light>){
+            this._light = light;
+            if((light as any).position)
+            this.attachedMesh!.position.copyFrom((light as any).position)
+        }
+
+        _update(){
+            super._update();
+            if(!this._light){
+                return;
+            }
+            if((this._light as any).position){
+                (this._light as any).position.copyFrom(this.attachedMesh!.position);
+            }
+            if(!this._light.isEnabled()){
+                (this._box.material as StandardMaterial).emissiveColor.set(0,0,0);
+            }else{
+                (this._box.material as StandardMaterial).emissiveColor.set(1,1,1);
+            }
+        }
+    }
 }

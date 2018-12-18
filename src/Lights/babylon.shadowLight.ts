@@ -258,7 +258,7 @@ module BABYLON {
 
         /**
          * Sets the ShadowLight direction toward the passed target.
-         * @param target The point tot target in local space
+         * @param target The point to target in local space
          * @returns the updated ShadowLight direction
          */
         public setDirectionToTarget(target: Vector3): Vector3 {
