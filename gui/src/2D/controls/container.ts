@@ -283,7 +283,7 @@ export class Container extends Control {
 
     /** @hidden */
     public _layout(parentMeasure: Measure, context: CanvasRenderingContext2D): boolean {
-        if (!this.isVisible || this.notRenderable) {
+        if (!this.isDirty && (!this.isVisible || this.notRenderable)) {
             return false;
         }
 
@@ -291,6 +291,7 @@ export class Container extends Control {
             this._tempCurrentMeasure.copyFrom(this._currentMeasure);
         }
 
+        //console.log("layout: "+ this.name)
         let rebuildCount = 0;
 
         context.save();
@@ -304,7 +305,7 @@ export class Container extends Control {
             let computedHeight = -1;
             this._rebuildLayout = false;
             this._processMeasures(parentMeasure, context);
-
+            
             if (!this._isClipped) {
                 for (var child of this._children) {
                     child._tempParentMeasure.copyFrom(this._measureForChildren);
@@ -346,6 +347,8 @@ export class Container extends Control {
         context.restore();
 
         if (this._isDirty) {
+            //console.log("layout invalidateRect: "+ this.name)
+            
             this.invalidateRect(
                 Math.min(this._currentMeasure.left, this._tempCurrentMeasure.left),
                 Math.min(this._currentMeasure.top, this._tempCurrentMeasure.top),
@@ -376,7 +379,7 @@ export class Container extends Control {
             // Only redraw parts of the screen that are invalidated
             if (invalidatedRectangle) {
                 if (!child._intersectsRect(invalidatedRectangle)) {
-                    // continue;
+                    continue;
                 }
             }
             child._render(context, invalidatedRectangle);

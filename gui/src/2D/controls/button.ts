@@ -65,13 +65,13 @@ export class Button extends Rectangle {
         };
 
         this.pointerDownAnimation = () => {
-            this.scaleX -= 0.05;
-            this.scaleY -= 0.05;
+            this.scaleX -= 0.2;
+            this.scaleY -= 0.2;
         };
 
         this.pointerUpAnimation = () => {
-            this.scaleX += 0.05;
-            this.scaleY += 0.05;
+            this.scaleX += 0.2;
+            this.scaleY += 0.2;
         };
     }
 

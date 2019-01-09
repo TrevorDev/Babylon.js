@@ -408,6 +408,8 @@ export class TextBlock extends Control {
 
             this._drawText(line.text, line.width, rootY, context);
             rootY += this._fontOffset.height;
+            // context.fillStyle = '#'+Math.floor(Math.random()*16777215).toString(16);
+            // context.fillRect(this._currentMeasure.left, this._currentMeasure.top, this._currentMeasure.width, this._currentMeasure.height);
         }
     }
 

@@ -309,7 +309,6 @@ export class Control {
         }
 
         this._scaleX = value;
-        this._transform();
         this._markAsDirty();
         this._markMatrixAsDirty();
     }
@@ -327,7 +326,6 @@ export class Control {
         }
 
         this._scaleY = value;
-        this._transform();
         this._markAsDirty();
         this._markMatrixAsDirty();
     }
@@ -1077,19 +1075,20 @@ export class Control {
 
     /** @hidden */
     public _intersectsRect(rect: Measure) {
-        if (this._currentMeasure.left >= rect.left + rect.width) {
+        var rotated = this._rotateMeasureByTransformMatrix(this._currentMeasure, this._transformMatrix)
+        if (rotated.left >= rect.left + rect.width) {
             return false;
         }
 
-        if (this._currentMeasure.top >= rect.top + rect.height) {
+        if (rotated.top >= rect.top + rect.height) {
             return false;
         }
 
-        if (this._currentMeasure.left + this._currentMeasure.width <= rect.left) {
+        if (rotated.left + rotated.width <= rect.left) {
             return false;
         }
 
-        if (this._currentMeasure.top + this._currentMeasure.height <= rect.top) {
+        if (rotated.top + rotated.height <= rect.top) {
             return false;
         }
 
@@ -1098,11 +1097,14 @@ export class Control {
 
     /** @hidden */
     protected invalidateRect(left: number, top: number, right: number, bottom: number) {
+        //debugger;
         if (this.host && this.host.useInvalidateRectOptimization) {
             // Compute AABB of transformed container box (eg. to handle rotation and scaling)
             var rectanglePoints = BABYLON.Polygon.Rectangle(left, top, right, bottom);
             var min = new Vector2(Number.MAX_VALUE, Number.MAX_VALUE);
             var max = new Vector2(0, 0);
+            // THIS NEEDS TO MAYBE BE ON????????????
+            //this._transform();
             for (var i = 0; i < 4; i++) {
                 this._transformMatrix.transformCoordinates(rectanglePoints[i].x, rectanglePoints[i].y, rectanglePoints[i]);
                 min.x = Math.min(min.x, rectanglePoints[i].x);
@@ -1112,14 +1114,14 @@ export class Control {
             }
 
             this.host.invalidateRect(
-                min.x,
-                min.y,
-                max.x,
-                max.y,
-                left,
-                top,
-                right,
-                bottom
+                Math.floor(min.x),
+                Math.floor(min.y),
+                Math.ceil(max.x),
+                Math.ceil(max.y),
+                Math.floor(left),
+                Math.floor(top),
+                Math.ceil(right),
+                Math.ceil(bottom)
             );
         }
     }
@@ -1131,6 +1133,11 @@ export class Control {
         }
 
         this._isDirty = true;
+
+        // TODO should this be the case? This is needed when a button.image.visiblity is modified to get the button to be marked as dirty
+        // if(this.parent){
+        //     this.parent._markAsDirty();
+        // }
 
         // Redraw only this rectangle
         if (this._host) {
@@ -1156,7 +1163,7 @@ export class Control {
     }
 
     /** @hidden */
-    protected _transform(context?: CanvasRenderingContext2D): void {
+    protected _transform(context?: CanvasRenderingContext2D, ref?:Matrix2D): void {
         if (!this._isMatrixDirty && this._scaleX === 1 && this._scaleY === 1 && this._rotation === 0) {
             return;
         }
@@ -1183,7 +1190,7 @@ export class Control {
             this._isMatrixDirty = false;
             this._flagDescendantsAsMatrixDirty();
 
-            Matrix2D.ComposeToRef(-offsetX, -offsetY, this._rotation, this._scaleX, this._scaleY, this.parent ? this.parent._transformMatrix : null, this._transformMatrix);
+            Matrix2D.ComposeToRef(-offsetX, -offsetY, this._rotation, this._scaleX, this._scaleY, this.parent ? this.parent._transformMatrix : null, ref ? ref :this._transformMatrix);
 
             this._transformMatrix.invertToRef(this._invertTransformMatrix);
         }
@@ -1236,11 +1243,12 @@ export class Control {
 
     /** @hidden */
     public _layout(parentMeasure: Measure, context: CanvasRenderingContext2D): boolean {
-        if (!this.isVisible || this.notRenderable) {
+        if (!this.isDirty && (!this.isVisible || this.notRenderable)) {
             return false;
         }
 
         if (this._isDirty || !this._cachedParentMeasure.isEqualsTo(parentMeasure)) {
+            //debugger;
             this._tempCurrentMeasure.copyFrom(this._currentMeasure);
 
             context.save();
@@ -1260,7 +1268,12 @@ export class Control {
             }
 
             context.restore();
+            
             this.invalidateRect(
+                // this._currentMeasure.left,
+                // this._currentMeasure.top,
+                // this._currentMeasure.left + this._currentMeasure.width,
+                // this._currentMeasure.top + this._currentMeasure.height
                 Math.min(this._currentMeasure.left, this._tempCurrentMeasure.left),
                 Math.min(this._currentMeasure.top, this._tempCurrentMeasure.top),
                 Math.max(this._currentMeasure.left + this._currentMeasure.width, this._tempCurrentMeasure.left + this._tempCurrentMeasure.width),
@@ -1440,19 +1453,84 @@ export class Control {
     }
 
     private static _ClipMeasure = new Measure(0, 0, 0, 0);
+
+    private _rotateMeasureByTransformMatrix(rect:Measure, transform:Matrix2D){
+        var rotated = new Measure(0,0,0,0);
+        var rectanglePoints = BABYLON.Polygon.Rectangle(rect.left, rect.top, rect.left+rect.width, rect.top + rect.height);
+        var min = new Vector2(Number.MAX_VALUE, Number.MAX_VALUE);
+        var max = new Vector2(0, 0);
+        for (var i = 0; i < 4; i++) {
+            transform.transformCoordinates(rectanglePoints[i].x, rectanglePoints[i].y, rectanglePoints[i]);
+            min.x = Math.floor(Math.min(min.x, rectanglePoints[i].x));
+            min.y = Math.floor(Math.min(min.y, rectanglePoints[i].y));
+            max.x = Math.ceil(Math.max(max.x, rectanglePoints[i].x));
+            max.y = Math.ceil(Math.max(max.y, rectanglePoints[i].y));
+        }
+        rotated.left = min.x;
+        rotated.top = min.y;
+        rotated.width = max.x - min.x;
+        rotated.height = max.y - min.y;
+        return rotated;
+    }
+
     private _clip(context: CanvasRenderingContext2D, invalidatedRectangle?: Nullable<Measure>) {
         context.beginPath();
-
+        //debugger;
         Control._ClipMeasure.copyFrom(this._currentMeasure);
-        if (invalidatedRectangle) {
-            var right = Math.min(invalidatedRectangle.left + invalidatedRectangle.width, this._currentMeasure.left + this._currentMeasure.width);
-            var bottom = Math.min(invalidatedRectangle.top + invalidatedRectangle.height, this._currentMeasure.top + this._currentMeasure.height);
-            Control._ClipMeasure.left = Math.max(invalidatedRectangle.left, this._currentMeasure.left);
-            Control._ClipMeasure.top = Math.max(invalidatedRectangle.top, this._currentMeasure.top);
-            Control._ClipMeasure.width = right - Control._ClipMeasure.left;
-            Control._ClipMeasure.height = bottom - Control._ClipMeasure.top;
-        }
+        if (invalidatedRectangle) {         
+            //debugger;
+            // Get the larger of the measure and its older measure          
+            var m = new Measure(0,0,0,0);
+            m.left = Math.min(this._currentMeasure.left, this._tempCurrentMeasure.left),
+            m.top = Math.min(this._currentMeasure.top, this._tempCurrentMeasure.top),
+            m.width = Math.max(this._currentMeasure.width, this._tempCurrentMeasure.width),
+            m.height = Math.max(this._currentMeasure.height, this._tempCurrentMeasure.height)
+            if(this._tempCurrentMeasure.width == 0 && this._tempCurrentMeasure.height == 0){
+                m.copyFrom(this._currentMeasure);
+            }
+            // Rotated the invalidated rect into context space
+            var mat = context.getTransform().inverse()
+            //debugger;
+            var bMat = new Matrix2D(mat.a, mat.b, mat.c, mat.d, mat.e, mat.f)
+            
 
+            var rotatedClear = this._rotateMeasureByTransformMatrix(invalidatedRectangle, bMat);
+            
+
+            // Get the intersection of the rect in context space and the current context
+            var intersection = new Measure(0,0,0,0);
+            intersection.left = Math.max(rotatedClear.left, m.left);
+            intersection.top = Math.max(rotatedClear.top, m.top);
+            intersection.width = Math.min(rotatedClear.left+rotatedClear.width,m.left+m.width)-intersection.left;
+            intersection.height = Math.min(rotatedClear.top+rotatedClear.height,m.top+m.height)-intersection.top;
+            Control._ClipMeasure.copyFrom(intersection);
+            //debugger;
+            var x = m;
+            var y = rotatedClear;
+            var z = intersection;
+            // context.fillStyle = '#'+Math.floor(Math.random()*1000).toString(16);
+            // context.fillRect(rotatedClear.left, rotatedClear.top, rotatedClear.width, rotatedClear.height);
+
+            //this._transform()
+            // var rotated = m//m//this._rotateMeasureByTransformMatrix(this._host._invalidatedRectangle, this._transformMatrix);//this._host._invalidatedRectangle//invalidatedRectangle//m//this._host._invalidatedRectangle//m//new Measure(0,0, 1000, 1000);//this._host._invalidatedRectangle//this._rotateMeasureByTransformMatrix(invalidatedRectangle, this._invertTransformMatrix);
+            // if(this._tempCurrentMeasure.width == 0 && this._tempCurrentMeasure.height == 0){
+            //     rotated = this._currentMeasure
+            // }
+            // var right = Math.max(rotated.left + rotated.width, m.left + m.width);
+            // var bottom = Math.max(rotated.top + rotated.height, m.top + m.height);
+            
+            // Control._ClipMeasure.copyFrom(rotated);
+            // Control._ClipMeasure.left = Math.min(rotated.left, m.left);
+            // Control._ClipMeasure.top = Math.min(rotated.top, m.top);
+            // Control._ClipMeasure.width = right - Control._ClipMeasure.left;
+            // Control._ClipMeasure.height = bottom - Control._ClipMeasure.top;
+
+           
+        }
+        // debugger;
+        
+        // context.
+        
         if (this.shadowBlur || this.shadowOffsetX || this.shadowOffsetY) {
             var shadowOffsetX = this.shadowOffsetX;
             var shadowOffsetY = this.shadowOffsetY;
@@ -1472,7 +1550,7 @@ export class Control {
         } else {
             context.rect(Control._ClipMeasure.left, Control._ClipMeasure.top, Control._ClipMeasure.width, Control._ClipMeasure.height);
         }
-
+        
         context.clip();
     }
 
