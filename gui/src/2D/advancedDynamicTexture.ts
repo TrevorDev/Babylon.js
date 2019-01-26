@@ -530,7 +530,11 @@ export class AdvancedDynamicTexture extends DynamicTexture {
             return;
         }
         this._isDirty = false;
-        this._render();
+        setTimeout(() => {
+            this.getContext().clearRect(0,0,1e6,1e6)
+            this._render();
+        }, 0);
+        
         this.update(true, this.premulAlpha);
     }
     private _clearMeasure = new Measure(0, 0, 0, 0);

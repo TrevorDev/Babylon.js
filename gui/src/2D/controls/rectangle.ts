@@ -52,7 +52,8 @@ export class Rectangle extends Container {
 
     protected _localDraw(context: CanvasRenderingContext2D): void {
         context.save();
-
+        context.rect(0,0,0,0)
+        context.clip()
         if (this.shadowBlur || this.shadowOffsetX || this.shadowOffsetY) {
             context.shadowColor = this.shadowColor;
             context.shadowBlur = this.shadowBlur;

@@ -1459,7 +1459,7 @@ export class Control {
 
     private static _ClipMeasure = new Measure(0, 0, 0, 0);
     private _tmpMeasureA = new Measure(0, 0, 0, 0);
-    private _clip(context: CanvasRenderingContext2D, invalidatedRectangle?: Nullable<Measure>) {
+    protected _clip(context: CanvasRenderingContext2D, invalidatedRectangle?: Nullable<Measure>) {
         context.beginPath();
         Control._ClipMeasure.copyFrom(this._currentMeasure);
         if (invalidatedRectangle) {
@@ -1475,7 +1475,7 @@ export class Control {
             Control._ClipMeasure.copyFrom(intersection);
         }
 
-        if (this.shadowBlur || this.shadowOffsetX || this.shadowOffsetY) {
+        if (!invalidatedRectangle && (this.shadowBlur || this.shadowOffsetX || this.shadowOffsetY)) {
             var shadowOffsetX = this.shadowOffsetX;
             var shadowOffsetY = this.shadowOffsetY;
             var shadowBlur = this.shadowBlur;
@@ -1504,6 +1504,8 @@ export class Control {
             this._isDirty = false;
             return false;
         }
+        debugger
+        console.log("Render: "+this.name)
         context.save();
 
         this._applyStates(context);
