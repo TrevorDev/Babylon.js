@@ -173,6 +173,8 @@ export class EngineCapabilities {
     public timerQuery: EXT_disjoint_timer_query;
     /** Defines if timestamp can be used with timer query */
     public canUseTimestampForTimerQuery: boolean;
+    /** Defines if multiview is supported (https://www.khronos.org/registry/webgl/extensions/WEBGL_multiview/) */
+    public multiview: boolean;
     /** Function used to let the system compiles shaders in background */
     public parallelShaderCompile: {
         MAX_SHADER_COMPILER_THREADS_KHR: number;
@@ -1423,6 +1425,7 @@ export class Engine {
 
         this._caps.textureLOD = (this._webGLVersion > 1 || this._gl.getExtension('EXT_shader_texture_lod')) ? true : false;
 
+        this._caps.multiview = this._gl.getExtension('WEBGL_multiview') ? true : false;
         // Draw buffers
         if (this._webGLVersion > 1) {
             this._caps.drawBuffersExtension = true;
