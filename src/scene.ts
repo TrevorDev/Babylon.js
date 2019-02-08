@@ -4116,13 +4116,14 @@ export class Scene extends AbstractScene implements IAnimatable {
     }
 
     private multiSetup = false;
-    private colorTex:any;
+    public colorTex:any;
+    public fb:any;
     private depthStencilTex:any;
     private _setupMultiview(){
         var gl2:any = this.getEngine()._gl;
         var ext = this.getEngine().getCaps().multiview;
-        var fb = gl2.createFramebuffer();
-        gl2.bindFramebuffer(gl2.DRAW_FRAMEBUFFER, fb);
+        this.fb = gl2.createFramebuffer();
+        gl2.bindFramebuffer(gl2.DRAW_FRAMEBUFFER, this.fb);
         this.colorTex = gl2.createTexture();
         gl2.bindTexture(gl2.TEXTURE_2D_ARRAY, this.colorTex);
         gl2.texStorage3D(gl2.TEXTURE_2D_ARRAY, 1, gl2.RGBA8, 512, 512, 2);
@@ -4146,6 +4147,9 @@ export class Scene extends AbstractScene implements IAnimatable {
                 this.multiSetup = true;
             }else{
                 // var gl2:any = this.getEngine()._gl;
+                // gl2.bindFramebuffer(gl2.DRAW_FRAMEBUFFER, this.fb);
+                // debugger;
+                //debugger
                 // var ext = this.getEngine().getCaps().multiview;
                 // gl2.bindTexture(gl2.TEXTURE_2D_ARRAY, this.colorTex);
                 // //gl2.texStorage3D(gl2.TEXTURE_2D_ARRAY, 1, gl2.RGBA8, 512, 512, 2);
@@ -4278,13 +4282,13 @@ export class Scene extends AbstractScene implements IAnimatable {
 
         this.onAfterCameraRenderObservable.notifyObservers(this.activeCamera);
     }
-
+    public test = null;
     private _processSubCameras(camera: Camera): void {
         if (camera.cameraRigMode === Camera.RIG_MODE_NONE) {
             this._renderForCamera(camera);
             return;
         }
-
+        //this.getEngine().getCaps().multiview = null
         //if(this.getEngine().getCaps().multiview){
             this._renderForMultiviewCamera(camera);
         // }else{
