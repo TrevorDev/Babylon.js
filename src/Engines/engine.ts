@@ -174,7 +174,7 @@ export class EngineCapabilities {
     /** Defines if timestamp can be used with timer query */
     public canUseTimestampForTimerQuery: boolean;
     /** Defines if multiview is supported (https://www.khronos.org/registry/webgl/extensions/WEBGL_multiview/) */
-    public multiview: boolean;
+    public multiview: any;
     /** Function used to let the system compiles shaders in background */
     public parallelShaderCompile: {
         MAX_SHADER_COMPILER_THREADS_KHR: number;
@@ -1425,7 +1425,7 @@ export class Engine {
 
         this._caps.textureLOD = (this._webGLVersion > 1 || this._gl.getExtension('EXT_shader_texture_lod')) ? true : false;
 
-        this._caps.multiview = this._gl.getExtension('WEBGL_multiview') ? true : false;
+        this._caps.multiview = this._gl.getExtension('WEBGL_multiview');
         // Draw buffers
         if (this._webGLVersion > 1) {
             this._caps.drawBuffersExtension = true;
@@ -1446,7 +1446,7 @@ export class Engine {
         }
 
         // Shader compiler threads
-        this._caps.parallelShaderCompile = this._gl.getExtension('KHR_parallel_shader_compile');
+        //this._caps.parallelShaderCompile = this._gl.getExtension('KHR_parallel_shader_compile');
         if (this._caps.parallelShaderCompile) {
             const threads = this._gl.getParameter(this._caps.parallelShaderCompile.MAX_SHADER_COMPILER_THREADS_KHR);
             this._caps.parallelShaderCompile.maxShaderCompilerThreadsKHR(threads);
@@ -2396,7 +2396,7 @@ export class Engine {
         this.wipeCaches();
     }
 
-    private bindUnboundFramebuffer(framebuffer: Nullable<WebGLFramebuffer>) {
+    public bindUnboundFramebuffer(framebuffer: Nullable<WebGLFramebuffer>) {
         if (this._currentFramebuffer !== framebuffer) {
             this._gl.bindFramebuffer(this._gl.FRAMEBUFFER, framebuffer);
             this._currentFramebuffer = framebuffer;
@@ -3341,6 +3341,39 @@ export class Engine {
     }
 
     private _compileRawShader(source: string, type: string): WebGLShader {
+        if(type == "vertex"){
+            // source = `#version 300 es
+            //     #define WEBGL2 
+            //     #extension GL_OVR_multiview : require
+            //     layout (num_views = 2) in;
+            //     precision mediump float;
+                
+            //     in vec4 inPos;
+            //     uniform Scene {
+            //         uniform mat4 viewProjectionL;
+            //         uniform mat4 viewProjectionR;
+            //         mat4 view;
+            //     };
+                
+            //     void main() {
+                    
+            //         if (gl_ViewID_OVR == 0u) {
+            //             gl_Position = viewProjectionL * inPos;
+            //         } else {
+            //             gl_Position = viewProjectionR * inPos;
+            //         }
+            //     }
+            //     `
+        }else{
+            // source = `#version 300 es
+            // #define WEBGL2
+            // precision mediump float;
+            // out vec4 glFragColor;
+            // void main() {
+            //     glFragColor = vec4(1.0,0.0,0.0,1.0);
+            // }
+            //     `
+        }
         var gl = this._gl;
         var shader = gl.createShader(type === "vertex" ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER);
 
@@ -3391,10 +3424,12 @@ export class Engine {
         context = context || this._gl;
 
         this.onBeforeShaderCompilationObservable.notifyObservers(this);
-
+        var mv = this.getCaps().multiview ? "#extension GL_OVR_multiview : require\nlayout (num_views = 2) in;\n" : "";
+        var mvd = this.getCaps().multiview ? "#define MULTIVIEW \n" : "";
+        
         var shaderVersion = (this._webGLVersion > 1) ? "#version 300 es\n#define WEBGL2 \n" : "";
-        var vertexShader = this._compileShader(vertexCode, "vertex", defines, shaderVersion);
-        var fragmentShader = this._compileShader(fragmentCode, "fragment", defines, shaderVersion);
+        var vertexShader = this._compileShader(vertexCode, "vertex", defines+mvd, shaderVersion+mv);
+        var fragmentShader = this._compileShader(fragmentCode, "fragment", defines+mvd, shaderVersion);
 
         let program = this._createShaderProgram(vertexShader, fragmentShader, context, transformFeedbackVaryings);
 
