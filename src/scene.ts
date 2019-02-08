@@ -1090,6 +1090,7 @@ export class Scene extends AbstractScene implements IAnimatable {
     public _activeAnimatables = new Array<Animatable>();
 
     private _transformMatrix = Matrix.Zero();
+    private _transformMatrixR = Matrix.Zero();
     private _sceneUbo: UniformBuffer;
     private _alternateSceneUbo: UniformBuffer;
 
@@ -1581,6 +1582,8 @@ export class Scene extends AbstractScene implements IAnimatable {
     private _createUbo(): void {
         this._sceneUbo = new UniformBuffer(this._engine, undefined, true);
         this._sceneUbo.addUniform("viewProjection", 16);
+        this._sceneUbo.addUniform("viewProjectionL", 16);
+        this._sceneUbo.addUniform("viewProjectionR", 16);
         this._sceneUbo.addUniform("view", 16);
     }
 
@@ -2538,7 +2541,7 @@ export class Scene extends AbstractScene implements IAnimatable {
      * @param view defines the View matrix to use
      * @param projection defines the Projection matrix to use
      */
-    public setTransformMatrix(view: Matrix, projection: Matrix): void {
+    public setTransformMatrix(view: Matrix, projection: Matrix, mview?: Matrix, mprojection?: Matrix): void {
         if (this._viewUpdateFlag === view.updateFlag && this._projectionUpdateFlag === projection.updateFlag) {
             return;
         }
@@ -2549,6 +2552,9 @@ export class Scene extends AbstractScene implements IAnimatable {
         this._projectionMatrix = projection;
 
         this._viewMatrix.multiplyToRef(this._projectionMatrix, this._transformMatrix);
+        if(mview && mprojection){
+            mview.multiplyToRef(mprojection, this._transformMatrixR);
+        }
 
         // Update frustum
         if (!this._frustumPlanes) {
@@ -2565,6 +2571,8 @@ export class Scene extends AbstractScene implements IAnimatable {
 
         if (this._sceneUbo.useUbo) {
             this._sceneUbo.updateMatrix("viewProjection", this._transformMatrix);
+            this._sceneUbo.updateMatrix("viewProjectionL", this._transformMatrix);
+            this._sceneUbo.updateMatrix("viewProjectionR", this._transformMatrixR);
             this._sceneUbo.updateMatrix("view", this._viewMatrix);
             this._sceneUbo.update();
         }
@@ -4107,19 +4115,192 @@ export class Scene extends AbstractScene implements IAnimatable {
         this.onAfterCameraRenderObservable.notifyObservers(this.activeCamera);
     }
 
+    private multiSetup = false;
+    public colorTex:any;
+    public fb:any;
+    private depthStencilTex:any;
+    private _setupMultiview(){
+        var gl2:any = this.getEngine()._gl;
+        var ext = this.getEngine().getCaps().multiview;
+        this.fb = gl2.createFramebuffer();
+        gl2.bindFramebuffer(gl2.DRAW_FRAMEBUFFER, this.fb);
+        this.colorTex = gl2.createTexture();
+        gl2.bindTexture(gl2.TEXTURE_2D_ARRAY, this.colorTex);
+        gl2.texStorage3D(gl2.TEXTURE_2D_ARRAY, 1, gl2.RGBA8, 512, 512, 2);
+        ext.framebufferTextureMultiviewWEBGL(gl2.DRAW_FRAMEBUFFER, gl2.COLOR_ATTACHMENT0, this.colorTex, 0, 0, 2);
+        this.depthStencilTex = gl2.createTexture();
+        gl2.bindTexture(gl2.TEXTURE_2D_ARRAY, this.depthStencilTex);
+        gl2.texStorage3D(gl2.TEXTURE_2D_ARRAY, 1, gl2.DEPTH32F_STENCIL8, 512, 512, 2);
+        ext.framebufferTextureMultiviewWEBGL(gl2.DRAW_FRAMEBUFFER, gl2.DEPTH_STENCIL_ATTACHMENT, this.depthStencilTex, 0, 0, 2);
+        //gl2.drawElements(...);  // draw will be broadcasted to the layers of colorTex and depthStencilTex.
+    }
+
+    private _renderForMultiviewCamera(camera: Camera, rigParent?: Camera): void {
+        var camerasToRender = camera._rigCameras;
+        if (camera && camera._skipRendering) {
+            return;
+        }
+        
+        if(this.getEngine().getCaps().multiview){
+            if(!this.multiSetup){
+                this._setupMultiview();
+                this.multiSetup = true;
+            }else{
+                // var gl2:any = this.getEngine()._gl;
+                // gl2.bindFramebuffer(gl2.DRAW_FRAMEBUFFER, this.fb);
+                // debugger;
+                //debugger
+                // var ext = this.getEngine().getCaps().multiview;
+                // gl2.bindTexture(gl2.TEXTURE_2D_ARRAY, this.colorTex);
+                // //gl2.texStorage3D(gl2.TEXTURE_2D_ARRAY, 1, gl2.RGBA8, 512, 512, 2);
+                // //ext.framebufferTextureMultiviewWEBGL(gl2.DRAW_FRAMEBUFFER, gl2.COLOR_ATTACHMENT0, this.colorTex, 0, 0, 2);
+                // gl2.bindTexture(gl2.TEXTURE_2D_ARRAY, this.depthStencilTex);
+                //gl2.texStorage3D(gl2.TEXTURE_2D_ARRAY, 1, gl2.DEPTH32F_STENCIL8, 512, 512, 2);
+                //ext.framebufferTextureMultiviewWEBGL(gl2.DRAW_FRAMEBUFFER, gl2.DEPTH_STENCIL_ATTACHMENT, this.depthStencilTex, 0, 0, 2);
+            }
+        }
+
+        
+        
+
+        var engine = this._engine;
+
+        this.activeCamera = camera;
+
+        if (!this.activeCamera) {
+            throw new Error("Active camera not set");
+        }
+
+        // Viewport
+        engine.setViewport(this.activeCamera.viewport);
+
+        // Camera
+        this.resetCachedMaterial();
+        this._renderId++;
+        this.setTransformMatrix(camerasToRender[0].getViewMatrix(), camerasToRender[0].getProjectionMatrix(), camerasToRender[1].getViewMatrix(), camerasToRender[1].getProjectionMatrix());
+
+        if (camera._alternateCamera) {
+            this.updateAlternateTransformMatrix(camera._alternateCamera);
+            this._alternateRendering = true;
+        }
+
+        this.onBeforeCameraRenderObservable.notifyObservers(this.activeCamera);
+
+        // Meshes
+        this._evaluateActiveMeshes();
+
+        // Software skinning
+        for (var softwareSkinnedMeshIndex = 0; softwareSkinnedMeshIndex < this._softwareSkinnedMeshes.length; softwareSkinnedMeshIndex++) {
+            var mesh = this._softwareSkinnedMeshes.data[softwareSkinnedMeshIndex];
+
+            mesh.applySkeleton(<Skeleton>mesh.skeleton);
+        }
+
+        // Render targets
+        this.onBeforeRenderTargetsRenderObservable.notifyObservers(this);
+
+        if (camera.customRenderTargets && camera.customRenderTargets.length > 0) {
+            this._renderTargets.concatWithNoDuplicate(camera.customRenderTargets);
+        }
+
+        if (rigParent && rigParent.customRenderTargets && rigParent.customRenderTargets.length > 0) {
+            this._renderTargets.concatWithNoDuplicate(rigParent.customRenderTargets);
+        }
+
+        // Collects render targets from external components.
+        for (let step of this._gatherActiveCameraRenderTargetsStage) {
+            step.action(this._renderTargets);
+        }
+
+        // if (this.renderTargetsEnabled) {
+        //     this._intermediateRendering = true;
+
+        //     if (this._renderTargets.length > 0) {
+        //         Tools.StartPerformanceCounter("Render targets", this._renderTargets.length > 0);
+        //         for (var renderIndex = 0; renderIndex < this._renderTargets.length; renderIndex++) {
+        //             let renderTarget = this._renderTargets.data[renderIndex];
+        //             if (renderTarget._shouldRender()) {
+        //                 this._renderId++;
+        //                 var hasSpecialRenderTargetCamera = renderTarget.activeCamera && renderTarget.activeCamera !== this.activeCamera;
+        //                 renderTarget.render((<boolean>hasSpecialRenderTargetCamera), this.dumpNextRenderTargets);
+        //             }
+        //         }
+        //         Tools.EndPerformanceCounter("Render targets", this._renderTargets.length > 0);
+
+        //         this._renderId++;
+        //     }
+
+        //     for (let step of this._cameraDrawRenderTargetStage) {
+        //         step.action(this.activeCamera);
+        //     }
+
+        //     this._intermediateRendering = false;
+
+        //     if (this.activeCamera.outputRenderTarget) {
+        //         var internalTexture = this.activeCamera.outputRenderTarget.getInternalTexture();
+        //         if (internalTexture) {
+        //             engine.bindFramebuffer(internalTexture);
+        //         } else {
+        //             Logger.Error("Camera contains invalid customDefaultRenderTarget");
+        //         }
+        //     } else {
+        //         engine.restoreDefaultFramebuffer(); // Restore back buffer if needed
+        //     }
+        // }
+
+        this.onAfterRenderTargetsRenderObservable.notifyObservers(this);
+
+        // Prepare Frame
+        if (this.postProcessManager) {
+            this.postProcessManager._prepareFrame();
+        }
+
+        // Before Camera Draw
+        for (let step of this._beforeCameraDrawStage) {
+            step.action(this.activeCamera);
+        }
+
+        // Render
+        this.onBeforeDrawPhaseObservable.notifyObservers(this);
+        this._renderingManager.render(null, null, true, true);
+        this.onAfterDrawPhaseObservable.notifyObservers(this);
+
+        // After Camera Draw
+        for (let step of this._afterCameraDrawStage) {
+            step.action(this.activeCamera);
+        }
+
+        // Finalize frame
+        if (this.postProcessManager) {
+            this.postProcessManager._finalizeFrame(camera.isIntermediate);
+        }
+
+        // Reset some special arrays
+        this._renderTargets.reset();
+
+        this._alternateRendering = false;
+
+        this.onAfterCameraRenderObservable.notifyObservers(this.activeCamera);
+    }
+    public test = null;
     private _processSubCameras(camera: Camera): void {
         if (camera.cameraRigMode === Camera.RIG_MODE_NONE) {
             this._renderForCamera(camera);
             return;
         }
-
-        // rig cameras
-        for (var index = 0; index < camera._rigCameras.length; index++) {
-            this._renderForCamera(camera._rigCameras[index], camera);
-        }
+        //this.getEngine().getCaps().multiview = null
+        //if(this.getEngine().getCaps().multiview){
+            this._renderForMultiviewCamera(camera);
+        // }else{
+        //     // rig cameras
+        //     for (var index = 0; index < camera._rigCameras.length; index++) {
+        //         this._renderForCamera(camera._rigCameras[index], camera);
+        //     }
+        // }
+        
 
         this.activeCamera = camera;
-        this.setTransformMatrix(this.activeCamera.getViewMatrix(), this.activeCamera.getProjectionMatrix());
+        //this.setTransformMatrix(this.activeCamera.getViewMatrix(), this.activeCamera.getProjectionMatrix());
     }
 
     private _checkIntersections(): void {
@@ -4345,7 +4526,7 @@ export class Scene extends AbstractScene implements IAnimatable {
         for (let step of this._gatherRenderTargetsStage) {
             step.action(this._renderTargets);
         }
-
+        
         // Multi-cameras?
         if (this.activeCameras.length > 0) {
             for (var cameraIndex = 0; cameraIndex < this.activeCameras.length; cameraIndex++) {
