@@ -638,6 +638,9 @@
             ],
             "legacyPackageOutputDirectory": "../../../Viewer/build/src/",
             "es6": {
+                "buildDependencies": [
+                    "node_modules/handlebars/**/*"
+                ],
                 "packageName": "@babylonjs/viewer",
                 "readme": "Viewer/README-ES6.md"
             }
