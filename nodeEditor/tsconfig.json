@@ -6,7 +6,7 @@
         "rootDir": "./src/",
         "paths": {
             "babylonjs/*": [
-                "../../dist/preview release/babylon.module.d.ts"
+                "../dist/preview release/babylon.module.d.ts"
             ]
         }
     }
