@@ -1,5 +1,5 @@
 import { LinkModel, PortModel, DefaultLinkModel } from "storm-react-diagrams";
-//import * as _ from "lodash";
+
 export class TexturePortModel extends PortModel {
 	position: string | "top" | "bottom" | "left" | "right";
 

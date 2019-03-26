@@ -3,13 +3,12 @@ import {
 	DiagramModel,
 	DefaultNodeModel,
 	//LinkModel,
-	DiagramWidget,
-	DefaultLinkModel
+	DiagramWidget
 } from "storm-react-diagrams";
 
 import * as React from "react";
 import { GlobalState } from '../globalState';
-import { TextureNodeModel } from './customDiragramNodes/texture/textureNodeModel';
+
 import { TextureNodeFactory } from './customDiragramNodes/texture/textureNodeFactory';
 require("storm-react-diagrams/dist/style.min.css");
 //require("storm-react-diagrams/dist/style.min.css");
@@ -69,7 +68,7 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
 
     addNode(){
         var node1 = new DefaultNodeModel("Texture", "rgb(0,192,255)");
-        let port1 = node1.addOutPort("Out");
+        node1.addOutPort("Out");
         node1.setPosition(0, 0);
         this.model.addAll(node1)
         this.forceUpdate()
