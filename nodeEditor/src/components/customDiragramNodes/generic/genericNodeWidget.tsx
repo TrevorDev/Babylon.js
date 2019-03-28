@@ -1,6 +1,6 @@
 import * as React from "react";
 import { PortWidget } from "storm-react-diagrams";
-import { Nullable } from 'babylonjs';
+import { Nullable } from 'babylonjs/types';
 import { GenericNodeModel } from './genericNodeModel';
 import { GenericPortModel } from './genericPortModel';
 

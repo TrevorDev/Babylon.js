@@ -10,7 +10,7 @@ import * as React from "react";
 import { GlobalState } from '../globalState';
 
 import { GenericNodeFactory } from './customDiragramNodes/generic/genericNodeFactory';
-import { NodeMaterialBlockConnectionPointTypes } from 'babylonjs';
+import { NodeMaterialBlockConnectionPointTypes } from 'babylonjs/Materials/Node/nodeMaterialBlockConnectionPointTypes';
 import { GenericNodeModel } from './customDiragramNodes/generic/genericNodeModel';
 import { GenericPortModel } from './customDiragramNodes/generic/genericPortModel';
 require("storm-react-diagrams/dist/style.min.css");

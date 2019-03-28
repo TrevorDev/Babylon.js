@@ -1,5 +1,7 @@
 import { LinkModel, PortModel, DefaultLinkModel } from "storm-react-diagrams";
-import { Nullable, NodeMaterialConnectionPoint } from 'babylonjs';
+import { Nullable } from 'babylonjs/types';
+import { NodeMaterialConnectionPoint } from 'babylonjs/Materials/Node/nodeMaterialBlockConnectionPoint';
+
 
 export class GenericPortModel extends PortModel {
 	position: string | "input" | "output";

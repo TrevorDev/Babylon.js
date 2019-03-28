@@ -1,5 +1,6 @@
 import { NodeModel } from "storm-react-diagrams";
-import { Nullable, NodeMaterialBlock } from 'babylonjs';
+import { Nullable } from 'babylonjs/types';
+import { NodeMaterialBlock } from 'babylonjs/Materials/Node/nodeMaterialBlock';
 
 export class GenericNodeModel extends NodeModel {
 	public block:Nullable<NodeMaterialBlock> = null;
