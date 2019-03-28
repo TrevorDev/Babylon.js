@@ -9,7 +9,10 @@ import {
 import * as React from "react";
 import { GlobalState } from '../globalState';
 
-import { TextureNodeFactory } from './customDiragramNodes/texture/textureNodeFactory';
+import { GenericNodeFactory } from './customDiragramNodes/generic/genericNodeFactory';
+import { NodeMaterialBlockConnectionPointTypes } from 'babylonjs';
+import { GenericNodeModel } from './customDiragramNodes/generic/genericNodeModel';
+import { GenericPortModel } from './customDiragramNodes/generic/genericPortModel';
 require("storm-react-diagrams/dist/style.min.css");
 //require("storm-react-diagrams/dist/style.min.css");
 
@@ -21,53 +24,117 @@ interface IGraphEditorProps {
 export class GraphEditor extends React.Component<IGraphEditorProps> {
     engine:DiagramEngine;
     model: DiagramModel;
+
+    nodes = new Array<any>();
+
+    rowPos = new Array<number>()
+    
+    /**
+     * Creates a node and recursivly creates its parent nodes from it's input
+     * @param object 
+     */
+    public createNodeFromObject(object:any, options:{column:number}){
+        // Update rows/columns
+        if(this.rowPos[options.column] == undefined){
+            this.rowPos[options.column] = 0;
+        }else{
+            this.rowPos[options.column]++;
+        }
+
+        // Create new node in the graph
+        console.log("creating: "+object.getClassName())
+        var outputNode = new GenericNodeModel();
+        outputNode.block = object
+        this.nodes.push(outputNode)
+        outputNode.headerLabels.push({text: object.getClassName()})
+        outputNode.setPosition(1500-(300*options.column), 200*this.rowPos[options.column])
+        this.model.addAll(outputNode);
+        // if(object.getClassName() == VertexOutputBlock.prototype.getClassName()){
+        //     outputNode.headerLabels.push({text: "VertexOutputBlock"})
+        // }
+
+        // Create output ports
+        object._outputs.forEach((connection:any)=>{
+            outputNode.addPort(new GenericPortModel(connection.name, "output"))
+        })
+
+        // Create input ports and nodes if they don't exist yet
+        object._inputs.forEach((connection:any)=>{
+            var newPort = new GenericPortModel(connection.name, "input");
+            newPort.connection = connection;
+            outputNode.addPort(newPort)
+            
+            if(connection._connectedPoint){
+                var connectedNode;
+                var existingNodes = this.nodes.filter((n)=>{return n.block == connection._connectedPoint._ownerBlock});
+                if(existingNodes.length == 0){
+                    connectedNode = this.createNodeFromObject(connection._connectedPoint._ownerBlock, {column: options.column+1});
+                }else{
+                    connectedNode = existingNodes[0];
+                }
+                var port = outputNode.getPort(connection.name)//.addLink(connectedNode.ports[connection._connectedPoint.name])
+                if(port){
+                    var link = port.createLinkModel()
+                    if(link){
+                        link.setSourcePort(port)
+                        link.setTargetPort(connectedNode.ports[connection._connectedPoint.name])
+                        this.model.addAll(link)
+                    }
+                }
+            }else if(connection.type == NodeMaterialBlockConnectionPointTypes.Texture){
+                var localNode = new GenericNodeModel();
+                localNode.headerLabels.push({text: "Texture"})
+                var outPort = new GenericPortModel("Texture", "output");
+                localNode.addPort(outPort)
+                this.model.addAll(localNode);
+
+                var port = outputNode.getPort(connection.name)
+                if(port){
+                    var link = port.createLinkModel()
+                    if(link){
+                        link.setSourcePort(port)
+                        link.setTargetPort(outPort)
+                        this.model.addAll(link)
+                    }
+                }
+            }
+        })
+        
+    
+        return outputNode;
+    }
+
     constructor(props: IGraphEditorProps) {
         super(props);
         
 
-        //1) setup the diagram engine
+        // setup the diagram engine
         this.engine = new DiagramEngine();
         this.engine.installDefaultFactories()
-        this.engine.registerNodeFactory(new TextureNodeFactory());
+        this.engine.registerNodeFactory(new GenericNodeFactory());
 
-        //2) setup the diagram model
+        // setup the diagram model
         this.model = new DiagramModel();
 
-        //3-A) create a default node
-        // var node1 = new DefaultNodeModel("Texture", "rgb(0,192,255)");
-        // let port1 = node1.addOutPort("Out");
-        // let port1b = node1.addOutPort("output 2");
-        // node1.setPosition(100, 100);
-
-        // //3-B) create another default node
-        var node2 = new DefaultNodeModel("Final output", "rgb(192,255,0)");
-        node2.addInPort("In");
-        node2.setPosition(400, 100);
-
-        // var node3 = new TextureNodeModel();
-
-        // // link the ports
-        // let link1 = port1.link(port2);
-        // (link1 as DefaultLinkModel).addLabel("Hello World!");
-
+        // Load graph of nodes from the material
         if(this.props.globalState.nodeMaterial){
-            var material = this.props.globalState.nodeMaterial;
-            console.log("Converting node material to diagram")
-            
-
+            var material:any = this.props.globalState.nodeMaterial;
+            material._vertexOutputNodes.forEach((n:any)=>{
+                this.createNodeFromObject(n, {column: 0});
+            })
+            material._fragmentOutputNodes.forEach((n:any)=>{
+                this.createNodeFromObject(n, {column: 0});
+            })
         }
 
-        //4) add the models to the root graph
-        this.model.addAll(node2);
-
-        //5) load model into engine
+        // load model into engine
         this.engine.setDiagramModel(this.model);
 
         console.log(this.engine)
     }
 
     addNode(){
-        var node1 = new DefaultNodeModel("Texture", "rgb(0,192,255)");
+        var node1 = new DefaultNodeModel("Generic", "rgb(0,192,255)");
         node1.addOutPort("Out");
         node1.setPosition(0, 0);
         this.model.addAll(node1)
@@ -87,7 +154,7 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
                     <button style={{width: "100%"}} onClick={()=>{this.addNode()}}> Add blur </button>
                 </div>
                 
-                <DiagramWidget className="srd-demo-canvas" diagramEngine={this.engine} />
+                <DiagramWidget inverseZoom={true} className="srd-demo-canvas" diagramEngine={this.engine} />
             </div>
         // <div style={this.divStyle}>
         //     <button onClick={this.addNode}> Add node </button>
