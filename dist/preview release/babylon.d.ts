@@ -49547,11 +49547,11 @@ declare module BABYLON {
         /**
          * Gets or sets the root nodes of the material vertex shader
          */
-        private _vertexOutputNodes;
+        _vertexOutputNodes: NodeMaterialBlock[];
         /**
          * Gets or sets the root nodes of the material fragment (pixel) shader
          */
-        private _fragmentOutputNodes;
+        _fragmentOutputNodes: NodeMaterialBlock[];
         /** Gets or sets options to control the node material overall behavior */
         options: INodeMaterialOptions;
         /**
@@ -49688,9 +49688,9 @@ declare module BABYLON {
         private _target;
         private _isFinalMerger;
         /** @hidden */
-        protected _inputs: NodeMaterialConnectionPoint[];
+        _inputs: NodeMaterialConnectionPoint[];
         /** @hidden */
-        protected _outputs: NodeMaterialConnectionPoint[];
+        _outputs: NodeMaterialConnectionPoint[];
         /**
          * Gets or sets the name of the block
          */
@@ -49841,8 +49841,8 @@ declare module BABYLON {
      * Defines a connection point for a block
      */
     export class NodeMaterialConnectionPoint {
-        private _ownerBlock;
-        private _connectedPoint;
+        _ownerBlock: NodeMaterialBlock;
+        _connectedPoint: Nullable<NodeMaterialConnectionPoint>;
         private _associatedVariableName;
         private _endpoints;
         private _storedValue;
