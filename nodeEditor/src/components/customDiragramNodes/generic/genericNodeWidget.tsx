@@ -3,6 +3,7 @@ import { PortWidget } from "storm-react-diagrams";
 import { Nullable } from 'babylonjs/types';
 import { GenericNodeModel } from './genericNodeModel';
 import { GenericPortModel } from './genericPortModel';
+import { PostProcess, PassPostProcess, Texture, Constants, PassCubePostProcess, RenderTargetTexture } from 'babylonjs';
 
 export interface GenericNodeWidgetProps {
 	node: Nullable<GenericNodeModel>;
@@ -18,10 +19,145 @@ export class GenericNodeWidget extends React.Component<GenericNodeWidgetProps, G
 		this.state = {}
 	}
 
+	componentDidUpdate() {
+		this.updateTexture()
+	}
+
+	componentDidMount() {
+		this.updateTexture()
+	}
+	
+	updateTexture(){
+		const previewCanvas = this.refs.canvas as HTMLCanvasElement;
+
+		if(this.props.node && previewCanvas){
+			var texture = this.props.node.textures[0];
+			if(!texture.isReady()){
+				texture.onLoadObservable.addOnce(()=>{
+					this.updateTexture()
+				})
+				return;
+			}
+			var scene = texture.getScene()!;
+			var engine = scene.getEngine();
+			var size = texture.getSize();
+			var ratio = size.width / size.height;
+			var width = 100;
+			var height = 100;
+			
+			let passPostProcess: PostProcess;
+
+			if (!texture.isCube) {
+				passPostProcess = new PassPostProcess("pass", 1, null, Texture.NEAREST_SAMPLINGMODE, engine, false, Constants.TEXTURETYPE_UNSIGNED_INT);
+			} else {
+				return
+				// var passCubePostProcess = new PassCubePostProcess("pass", 1, null, Texture.NEAREST_SAMPLINGMODE, engine, false, Constants.TEXTURETYPE_UNSIGNED_INT);
+				// passCubePostProcess.face = this.state.face;
+
+				// passPostProcess = passCubePostProcess;
+			}
+
+			if (!passPostProcess.getEffect().isReady()) {
+				// Try again later
+				passPostProcess.dispose();
+
+				//setTimeout(() => this.updatePreview(), 250);
+
+				return;
+			}
+
+			const previewCanvas = this.refs.canvas as HTMLCanvasElement;
+
+			//this.props.globalState.blockMutationUpdates = true;
+			let rtt = new RenderTargetTexture(
+				"temp",
+				{ width: width, height: height },
+				scene, false);
+
+			passPostProcess.onApply = function(effect) {
+				effect.setTexture("textureSampler", texture);
+			};
+
+			let internalTexture = rtt.getInternalTexture();
+
+			if (internalTexture) {
+				scene.postProcessManager.directRender([passPostProcess], internalTexture);
+
+				// Read the contents of the framebuffer
+				var numberOfChannelsByLine = width * 4;
+				var halfHeight = height / 2;
+
+				//Reading datas from WebGL
+				var data = engine.readPixels(0, 0, width, height);
+
+				// if (!texture.isCube) {
+				// 	if (!this.state.displayRed || !this.state.displayGreen || !this.state.displayBlue) {
+				// 		for (var i = 0; i < width * height * 4; i += 4) {
+
+				// 			if (!this.state.displayRed) {
+				// 				data[i] = 0;
+				// 			}
+
+				// 			if (!this.state.displayGreen) {
+				// 				data[i + 1] = 0;
+				// 			}
+
+				// 			if (!this.state.displayBlue) {
+				// 				data[i + 2] = 0;
+				// 			}
+
+				// 			if (this.state.displayAlpha) {
+				// 				var alpha = data[i + 2];
+				// 				data[i] = alpha;
+				// 				data[i + 1] = alpha;
+				// 				data[i + 2] = alpha;
+				// 				data[i + 2] = 0;
+				// 			}
+				// 		}
+				// 	}
+				// }
+
+				//To flip image on Y axis.
+				if ((texture as Texture).invertY || texture.isCube) {
+					for (var i = 0; i < halfHeight; i++) {
+						for (var j = 0; j < numberOfChannelsByLine; j++) {
+							var currentCell = j + i * numberOfChannelsByLine;
+							var targetLine = height - i - 1;
+							var targetCell = j + targetLine * numberOfChannelsByLine;
+
+							var temp = data[currentCell];
+							data[currentCell] = data[targetCell];
+							data[targetCell] = temp;
+						}
+					}
+				}
+
+				previewCanvas.width = width;
+				previewCanvas.height = height;
+				var context = previewCanvas.getContext('2d');
+
+				if (context) {
+					// Copy the pixels to the preview canvas
+					var imageData = context.createImageData(width, height);
+					var castData = imageData.data;
+					castData.set(data);
+					context.putImageData(imageData, 0, 0);
+				}
+
+				// Unbind
+				engine.unBindFramebuffer(internalTexture);
+			}
+
+			rtt.dispose();
+			passPostProcess.dispose();
+		}
+	}
+
 	render() {
 		var headers = new Array<JSX.Element>()
 		var inputPorts = new Array<JSX.Element>()
 		var outputPorts = new Array<JSX.Element>()
+		var texture = <div></div>
 		if(this.props.node){
 			// Header labels
 			this.props.node.headerLabels.forEach((h, i)=>{
@@ -81,6 +217,14 @@ export class GenericNodeWidget extends React.Component<GenericNodeWidgetProps, G
 				}
 				
 			}
+
+			this.props.node.textures.forEach(()=>{
+				texture = (
+					<div>
+						<canvas width="100" height="100" ref="canvas" className="preview" />
+					</div>
+				)
+			})
 		}
 
 		return (
@@ -90,6 +234,7 @@ export class GenericNodeWidget extends React.Component<GenericNodeWidgetProps, G
 				{/* <img src="../Playground/textures/bloc.jpg" width="30px"></img> */}
 				{inputPorts}
 				{outputPorts}
+				{texture}
 			</div>
 		);
 	}

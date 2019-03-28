@@ -13,6 +13,7 @@ import { GenericNodeFactory } from './customDiragramNodes/generic/genericNodeFac
 import { NodeMaterialBlockConnectionPointTypes } from 'babylonjs/Materials/Node/nodeMaterialBlockConnectionPointTypes';
 import { GenericNodeModel } from './customDiragramNodes/generic/genericNodeModel';
 import { GenericPortModel } from './customDiragramNodes/generic/genericPortModel';
+import { NodeMaterialBlock } from 'babylonjs';
 require("storm-react-diagrams/dist/style.min.css");
 //require("storm-react-diagrams/dist/style.min.css");
 
@@ -31,9 +32,14 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
     
     /**
      * Creates a node and recursivly creates its parent nodes from it's input
-     * @param object 
+     * @param nodeMaterialBlock 
      */
-    public createNodeFromObject(object:any, options:{column:number}){
+    public createNodeFromObject(
+        options:{
+            column:number,
+            nodeMaterialBlock?:NodeMaterialBlock                            
+        }
+    ){
         // Update rows/columns
         if(this.rowPos[options.column] == undefined){
             this.rowPos[options.column] = 0;
@@ -42,63 +48,61 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
         }
 
         // Create new node in the graph
-        console.log("creating: "+object.getClassName())
         var outputNode = new GenericNodeModel();
-        outputNode.block = object
         this.nodes.push(outputNode)
-        outputNode.headerLabels.push({text: object.getClassName()})
         outputNode.setPosition(1500-(300*options.column), 200*this.rowPos[options.column])
         this.model.addAll(outputNode);
-        // if(object.getClassName() == VertexOutputBlock.prototype.getClassName()){
-        //     outputNode.headerLabels.push({text: "VertexOutputBlock"})
-        // }
 
-        // Create output ports
-        object._outputs.forEach((connection:any)=>{
-            outputNode.addPort(new GenericPortModel(connection.name, "output"))
-        })
+        if(options.nodeMaterialBlock){
+            outputNode.block = options.nodeMaterialBlock
+            outputNode.headerLabels.push({text: options.nodeMaterialBlock.getClassName()})
 
-        // Create input ports and nodes if they don't exist yet
-        object._inputs.forEach((connection:any)=>{
-            var newPort = new GenericPortModel(connection.name, "input");
-            newPort.connection = connection;
-            outputNode.addPort(newPort)
-            
-            if(connection._connectedPoint){
-                var connectedNode;
-                var existingNodes = this.nodes.filter((n)=>{return n.block == connection._connectedPoint._ownerBlock});
-                if(existingNodes.length == 0){
-                    connectedNode = this.createNodeFromObject(connection._connectedPoint._ownerBlock, {column: options.column+1});
-                }else{
-                    connectedNode = existingNodes[0];
-                }
-                var port = outputNode.getPort(connection.name)//.addLink(connectedNode.ports[connection._connectedPoint.name])
-                if(port){
-                    var link = port.createLinkModel()
-                    if(link){
-                        link.setSourcePort(port)
-                        link.setTargetPort(connectedNode.ports[connection._connectedPoint.name])
-                        this.model.addAll(link)
+            // Create output ports
+            options.nodeMaterialBlock._outputs.forEach((connection:any)=>{
+                outputNode.addPort(new GenericPortModel(connection.name, "output"))
+            })
+
+            // Create input ports and nodes if they don't exist yet
+            options.nodeMaterialBlock._inputs.forEach((connection)=>{
+                var inputPort = new GenericPortModel(connection.name, "input");
+                inputPort.connection = connection;
+                outputNode.addPort(inputPort)
+                
+                if(connection._connectedPoint){
+                    var connectedNode;
+                    var existingNodes = this.nodes.filter((n)=>{return n.block == (connection as any)._connectedPoint._ownerBlock});
+                    if(existingNodes.length == 0){
+                        connectedNode = this.createNodeFromObject({column: options.column+1, nodeMaterialBlock: connection._connectedPoint._ownerBlock});
+                    }else{
+                        connectedNode = existingNodes[0];
                     }
-                }
-            }else if(connection.type == NodeMaterialBlockConnectionPointTypes.Texture){
-                var localNode = new GenericNodeModel();
-                localNode.headerLabels.push({text: "Texture"})
-                var outPort = new GenericPortModel("Texture", "output");
-                localNode.addPort(outPort)
-                this.model.addAll(localNode);
-
-                var port = outputNode.getPort(connection.name)
-                if(port){
-                    var link = port.createLinkModel()
-                    if(link){
-                        link.setSourcePort(port)
-                        link.setTargetPort(outPort)
-                        this.model.addAll(link)
+           
+                    let link = connectedNode.ports[connection._connectedPoint.name].link(inputPort);
+                    this.model.addAll(link);
+                    
+                }else if(connection.type == NodeMaterialBlockConnectionPointTypes.Texture){
+                    var localNode = this.createNodeFromObject({column: options.column+1})
+                    localNode.headerLabels.push({text: "Texture"})
+                    if(connection.value){
+                        console.log("hit")
+                        localNode.textures.push(connection.value)
                     }
+                    var outPort = new GenericPortModel("Texture", "output");
+                    localNode.addPort(outPort)
+                    let link = outPort.link(inputPort);
+                    this.model.addAll(link);
+                } else if(connection.type == NodeMaterialBlockConnectionPointTypes.Matrix){
+                    var localNode = this.createNodeFromObject({column: options.column+1})
+                    localNode.headerLabels.push({text: "Matrix"})
+                    var outPort = new GenericPortModel("Matrix", "output");
+                    localNode.addPort(outPort)
+
+                    let link = outPort.link(inputPort);
+                    this.model.addAll(link);
                 }
-            }
-        })
+            })
+        }
+        
         
     
         return outputNode;
@@ -120,10 +124,10 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
         if(this.props.globalState.nodeMaterial){
             var material:any = this.props.globalState.nodeMaterial;
             material._vertexOutputNodes.forEach((n:any)=>{
-                this.createNodeFromObject(n, {column: 0});
+                this.createNodeFromObject({column: 0, nodeMaterialBlock: n});
             })
             material._fragmentOutputNodes.forEach((n:any)=>{
-                this.createNodeFromObject(n, {column: 0});
+                this.createNodeFromObject({column: 0, nodeMaterialBlock: n});
             })
         }
 

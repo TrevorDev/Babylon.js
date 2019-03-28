@@ -26,6 +26,13 @@ export class GenericPortModel extends PortModel {
 	// 	this.position = data.position;
 	// }
 
+	link(outPort:GenericPortModel){
+		var link = this.createLinkModel()
+		link.setSourcePort(this)
+		link.setTargetPort(outPort)
+		return link;
+	}
+
 	createLinkModel(): LinkModel {
 		return new DefaultLinkModel();
 	}
