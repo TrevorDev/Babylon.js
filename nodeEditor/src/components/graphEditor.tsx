@@ -50,7 +50,7 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
         // Create new node in the graph
         var outputNode = new GenericNodeModel();
         this.nodes.push(outputNode)
-        outputNode.setPosition(1500-(300*options.column), 200*this.rowPos[options.column])
+        outputNode.setPosition(1600-(300*options.column), 200*this.rowPos[options.column])
         this.model.addAll(outputNode);
 
         if(options.nodeMaterialBlock){
@@ -82,9 +82,8 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
                     
                 }else if(connection.type == NodeMaterialBlockConnectionPointTypes.Texture){
                     var localNode = this.createNodeFromObject({column: options.column+1})
-                    localNode.headerLabels.push({text: "Texture"})
+                    //localNode.headerLabels.push({text: "Texture"})
                     if(connection.value){
-                        console.log("hit")
                         localNode.textures.push(connection.value)
                     }
                     var outPort = new GenericPortModel("Texture", "output");
