@@ -447,6 +447,8 @@ export class NodeMaterial extends PushMaterial {
 
         this._buildWasSuccessful = true;
         this.onBuildObservable.notifyObservers(this);
+
+        this._markAllSubMeshesAsAllDirty();
     }
 
     /**

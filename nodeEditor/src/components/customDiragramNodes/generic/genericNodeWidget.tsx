@@ -34,7 +34,12 @@ export class GenericNodeWidget extends React.Component<GenericNodeWidgetProps, G
 		if(!this.props.node){
 			return;
 		}
-        const texture = this.props.node.textures[0];
+		const texture = this.props.node.texture;
+		if(!texture){
+			//this.props.node.texture = new Texture(null, this.props.node.)
+			console.log("no texture exists");
+			return;
+		}
         Tools.ReadFile(file, (data) => {
             var blob = new Blob([data], { type: "octet/stream" });
             var url = URL.createObjectURL(blob);
@@ -59,7 +64,7 @@ export class GenericNodeWidget extends React.Component<GenericNodeWidgetProps, G
 		var headers = new Array<JSX.Element>()
 		var inputPorts = new Array<JSX.Element>()
 		var outputPorts = new Array<JSX.Element>()
-		var texture = <div></div>
+		var texture = <div><FileButtonLineComponent label="" onClick={(file) => this.replaceTexture(file)} accept=".jpg, .png, .tga, .dds, .env" /></div>
 		if(this.props.node){
 			// Header labels
 			this.props.node.headerLabels.forEach((h, i)=>{
@@ -100,7 +105,7 @@ export class GenericNodeWidget extends React.Component<GenericNodeWidgetProps, G
 								<PortWidget key={key} name={port.name} node={this.props.node} />
 							</div>
 							<div style={{display: "inline-block", color: color}}>
-								{port.label} 
+								{port.name} 
 							</div>
 							{control}
 						</div>
@@ -109,7 +114,7 @@ export class GenericNodeWidget extends React.Component<GenericNodeWidgetProps, G
 					outputPorts.push(
 						<div key={key}>
 							<div style={{display: "inline-block"}}>
-								{port.label}
+								{port.name}
 							</div>
 							<div style={{display: "inline-block", borderStyle: "solid", marginBottom: "-4px", position: "absolute", right: "-10px", background: "#777777"}}>
 								<PortWidget key={key} name={port.name} node={this.props.node} />
@@ -120,14 +125,14 @@ export class GenericNodeWidget extends React.Component<GenericNodeWidgetProps, G
 				
 			}
 
-			this.props.node.textures.forEach((t)=>{
+			if(this.props.node.texture){
 				texture = (
 					<div>
-						<TextureLineComponent ref="textureView" width={100} height={100} texture={t} hideChannelSelect={true}/>
+						<TextureLineComponent ref="textureView" width={100} height={100} texture={this.props.node.texture} hideChannelSelect={true}/>
 						<FileButtonLineComponent label="" onClick={(file) => this.replaceTexture(file)} accept=".jpg, .png, .tga, .dds, .env" />
 					</div>
 				)
-			})
+			}
 		}
 
 		return (

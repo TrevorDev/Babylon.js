@@ -6,7 +6,7 @@ import { Texture } from 'babylonjs';
 export class GenericNodeModel extends NodeModel {
 	public block:Nullable<NodeMaterialBlock> = null;
 	public headerLabels:Array<{text: string}> = []
-	textures: Array<Texture> = [];
+	texture: Nullable<Texture> = null;
 	//public textureInputs:Array<{text: string, initialValue: string}> = []
 
 	constructor() {

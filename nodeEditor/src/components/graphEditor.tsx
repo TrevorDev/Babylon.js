@@ -17,6 +17,19 @@ import { NodeMaterialBlock } from 'babylonjs';
 require("storm-react-diagrams/dist/style.min.css");
 //require("storm-react-diagrams/dist/style.min.css");
 
+/*
+Data vs View
+NodeMaterialBlock = GenericNodeModel
+NodeMaterialConnectionPoint = GenericPortModel (Connection is a LinkModel, which is a built in react-storm type)
+
+You can only access data from view, view is not accessible from data
+
+Traversing data to create view is done in createNodeFromObject method
+*/
+
+
+
+
 
 interface IGraphEditorProps {
     globalState: GlobalState;
@@ -59,16 +72,19 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
 
             // Create output ports
             options.nodeMaterialBlock._outputs.forEach((connection:any)=>{
-                outputNode.addPort(new GenericPortModel(connection.name, "output"))
+                var outputPort = new GenericPortModel(connection.name, "output");
+                outputPort.syncWithNodeMaterialConnectionPoint(connection);
+                outputNode.addPort(outputPort)
             })
 
-            // Create input ports and nodes if they don't exist yet
+            // Create input ports and nodes if they exist
             options.nodeMaterialBlock._inputs.forEach((connection)=>{
                 var inputPort = new GenericPortModel(connection.name, "input");
                 inputPort.connection = connection;
                 outputNode.addPort(inputPort)
                 
                 if(connection._connectedPoint){
+                    // Block is not a leaf node, create node for the given block type
                     var connectedNode;
                     var existingNodes = this.nodes.filter((n)=>{return n.block == (connection as any)._connectedPoint._ownerBlock});
                     if(existingNodes.length == 0){
@@ -81,16 +97,21 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
                     this.model.addAll(link);
                     
                 }else if(connection.type == NodeMaterialBlockConnectionPointTypes.Texture){
+                    // Create node for a texture
                     var localNode = this.createNodeFromObject({column: options.column+1})
                     //localNode.headerLabels.push({text: "Texture"})
                     if(connection.value){
-                        localNode.textures.push(connection.value)
+                        localNode.texture = connection.value
                     }
                     var outPort = new GenericPortModel("Texture", "output");
+                    outPort.getValue = ()=>{
+                        return localNode.texture;
+                    }
                     localNode.addPort(outPort)
                     let link = outPort.link(inputPort);
                     this.model.addAll(link);
                 } else if(connection.type == NodeMaterialBlockConnectionPointTypes.Matrix){
+                    // Create node for a Matrix
                     var localNode = this.createNodeFromObject({column: options.column+1})
                     localNode.headerLabels.push({text: "Matrix"})
                     var outPort = new GenericPortModel("Matrix", "output");
@@ -119,6 +140,68 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
         // setup the diagram model
         this.model = new DiagramModel();
 
+        this.model.addListener({
+            linksUpdated: (e)=>{
+                console.log(e)
+                if(!e.isCreated){
+                    // Link is deleted
+                    console.log("link deleted");
+                    var link = GenericPortModel.SortInputOutput(e.link.sourcePort as GenericPortModel, e.link.targetPort as GenericPortModel);
+                    console.log(link)
+                    if(link){
+                        if(link.output.connection && link.input.connection){
+                            // Disconnect standard nodes
+                            console.log("disconnected "+link.output.connection.name+" from "+link.input.connection.name)
+                            link.output.connection.disconnectFrom(link.input.connection)
+                            link.input.syncWithNodeMaterialConnectionPoint(link.input.connection)
+                            link.output.syncWithNodeMaterialConnectionPoint(link.output.connection)
+                        }else if(link.input.connection && link.input.connection.value){
+                            console.log("value link removed");
+                            link.input.connection.value = null;
+                        }else{
+                            console.log("invalid link error");
+                        }   
+                    }
+                }else{
+                    console.log("link created")
+                    console.log(e.link.sourcePort)
+                }
+                e.link.addListener({
+                    sourcePortChanged: ()=>{
+                        console.log("port change")
+                    },
+                    targetPortChanged: ()=>{
+                        // Link is created with a target port
+                        console.log("Link set to target")
+                        var link = GenericPortModel.SortInputOutput(e.link.sourcePort as GenericPortModel, e.link.targetPort as GenericPortModel);
+                        debugger;
+                        if(link){
+                            if(link.output.connection && link.input.connection){
+                               console.log("link standard blocks")
+                               link.output.connection.connectTo(link.input.connection)
+                            }else if(link.input.connection){
+                                console.log("link value to standard block")
+                                link.input.connection.value = link.output.getValue();
+                                
+                            }
+                            if(this.props.globalState.nodeMaterial){
+                                this.props.globalState.nodeMaterial.build()
+                            }
+                        }
+                    }
+                    
+                })
+                
+            },
+            nodesUpdated: (e)=>{
+                if(e.isCreated){
+                    console.log("new node")
+                }else{
+                    console.log("node deleted")
+                }
+            }
+        })
+
         // Load graph of nodes from the material
         if(this.props.globalState.nodeMaterial){
             var material:any = this.props.globalState.nodeMaterial;
@@ -137,10 +220,25 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
     }
 
     addNode(){
-        var node1 = new DefaultNodeModel("Generic", "rgb(0,192,255)");
-        node1.addOutPort("Out");
-        node1.setPosition(0, 0);
-        this.model.addAll(node1)
+         // Create node for a texture
+         var localNode = this.createNodeFromObject({column: 0})
+         //localNode.headerLabels.push({text: "Texture"})
+        //  if(connection.value){
+        //      localNode.texture = connection.value
+        //  }
+         var outPort = new GenericPortModel("Texture", "output");
+         outPort.getValue = ()=>{
+             return localNode.texture;
+         }
+         localNode.addPort(outPort)
+        //  let link = outPort.link(inputPort);
+        //  this.model.addAll(link);
+
+
+        // var node1 = new DefaultNodeModel("Generic", "rgb(0,192,255)");
+        // node1.addOutPort("Out");
+        // node1.setPosition(0, 0);
+        // this.model.addAll(node1)
         this.forceUpdate()
     }
 
