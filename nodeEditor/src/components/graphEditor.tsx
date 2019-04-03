@@ -129,6 +129,12 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
         return outputNode;
     }
 
+    componentDidMount(){
+        // debugger;
+        // this.props.globalState;
+        (this.refs["test"] as DiagramWidget).setState({document: this.props.globalState.hostDocument})
+    }
+
     constructor(props: IGraphEditorProps) {
         super(props);
         
@@ -244,7 +250,8 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
     }
 
     divStyle = {
-        display: "contents"
+        display: "flex",
+        height: "100%"
     }
 
     render() {
@@ -256,7 +263,7 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
                     <button style={{width: "100%"}} onClick={()=>{this.addNode()}}> Add blur </button>
                 </div>
                 
-                <DiagramWidget inverseZoom={true} className="srd-demo-canvas" diagramEngine={this.engine} maxNumberPointsPerLink={0} />
+                <DiagramWidget ref={"test"} inverseZoom={true} className="srd-demo-canvas" diagramEngine={this.engine} maxNumberPointsPerLink={0} />
             </div>
         // <div style={this.divStyle}>
         //     <button onClick={this.addNode}> Add node </button>

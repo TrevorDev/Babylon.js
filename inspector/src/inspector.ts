@@ -410,7 +410,7 @@ export class Inspector {
         }
     }
 
-    private static _CreateCanvasContainer(parentControl: HTMLElement) {
+    public static _CreateCanvasContainer(parentControl: HTMLElement) {
         // Create a container for previous elements
         this._NewCanvasContainer = parentControl.ownerDocument!.createElement("div");
         this._NewCanvasContainer.style.display = parentControl.style.display;
