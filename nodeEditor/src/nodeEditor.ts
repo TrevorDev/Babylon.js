@@ -3,7 +3,7 @@ import * as ReactDOM from "react-dom";
 import { GlobalState } from './globalState';
 import { GraphEditor } from './components/graphEditor';
 import {NodeMaterial} from "babylonjs"
-
+import {Inspector} from "../../inspector/src"
 /**
  * Interface used to specify creation options for the node editor
  */
@@ -25,6 +25,7 @@ export class NodeEditor {
      */
     public static Show(options: INodeEditorOptions) {
         if(!options.hostElement){
+            
             var divElement = document.createElement("div");
             document.body.prepend(divElement)
             divElement.id = "node-editor";
@@ -32,7 +33,10 @@ export class NodeEditor {
             divElement.style.width = "100%"
             divElement.style.height = "300px"
             divElement.style.display = "flex"
-            options.hostElement = divElement;
+            options.hostElement = divElement
+            // debugger;
+            // options.hostElement = Inspector._CreatePopup("SCENE EXPLORER", "node-editor")!;
+            
         }
         let globalState = new GlobalState();
         globalState.nodeMaterial = options.nodeMaterial

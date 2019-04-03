@@ -13,7 +13,8 @@ import { GenericNodeFactory } from './customDiragramNodes/generic/genericNodeFac
 import { NodeMaterialBlockConnectionPointTypes } from 'babylonjs/Materials/Node/nodeMaterialBlockConnectionPointTypes';
 import { GenericNodeModel } from './customDiragramNodes/generic/genericNodeModel';
 import { GenericPortModel } from './customDiragramNodes/generic/genericPortModel';
-import { NodeMaterialBlock } from 'babylonjs';
+import { NodeMaterialBlock, Texture } from 'babylonjs';
+import { Engine } from 'babylonjs/Engines/engine';
 require("storm-react-diagrams/dist/style.min.css");
 //require("storm-react-diagrams/dist/style.min.css");
 
@@ -142,7 +143,6 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
 
         this.model.addListener({
             linksUpdated: (e)=>{
-                console.log(e)
                 if(!e.isCreated){
                     // Link is deleted
                     console.log("link deleted");
@@ -174,7 +174,7 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
                         // Link is created with a target port
                         console.log("Link set to target")
                         var link = GenericPortModel.SortInputOutput(e.link.sourcePort as GenericPortModel, e.link.targetPort as GenericPortModel);
-                        debugger;
+                        
                         if(link){
                             if(link.output.connection && link.input.connection){
                                console.log("link standard blocks")
@@ -231,6 +231,7 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
              return localNode.texture;
          }
          localNode.addPort(outPort)
+         localNode.texture = new Texture(null, Engine.LastCreatedScene)
         //  let link = outPort.link(inputPort);
         //  this.model.addAll(link);
 
@@ -255,7 +256,7 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
                     <button style={{width: "100%"}} onClick={()=>{this.addNode()}}> Add blur </button>
                 </div>
                 
-                <DiagramWidget inverseZoom={true} className="srd-demo-canvas" diagramEngine={this.engine} />
+                <DiagramWidget inverseZoom={true} className="srd-demo-canvas" diagramEngine={this.engine} maxNumberPointsPerLink={0} />
             </div>
         // <div style={this.divStyle}>
         //     <button onClick={this.addNode}> Add node </button>

@@ -250,7 +250,7 @@ export class Inspector {
             ReactDOM.render(embedHostElement, this._EmbedHost);
         }
     }
-    private static _CreatePopup(title: string, windowVariableName: string) {
+    public static _CreatePopup(title: string, windowVariableName: string) {
         const windowCreationOptionsList = {
             width: 300,
             height: 800,

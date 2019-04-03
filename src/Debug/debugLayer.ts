@@ -220,6 +220,7 @@ export class DebugLayer {
       */
     public show(config?: IInspectorOptions): Promise<DebugLayer> {
         return new Promise((resolve, reject) => {
+            debugger;
             if (typeof this.BJSINSPECTOR == 'undefined') {
                 const inspectorUrl = config && config.inspectorURL ? config.inspectorURL : DebugLayer.InspectorURL;
 

@@ -6,6 +6,7 @@ import { GenericPortModel } from './genericPortModel';
 import { Texture, Tools } from 'babylonjs';
 import {TextureLineComponent} from "../../../../../inspector/src/components/actionTabs/lines/textureLineComponent"
 import {FileButtonLineComponent} from "../../../../../inspector/src/components/actionTabs/lines/fileButtonLineComponent"
+import { Engine } from 'babylonjs/Engines/engine';
 
 export interface GenericNodeWidgetProps {
 	node: Nullable<GenericNodeModel>;
@@ -34,11 +35,10 @@ export class GenericNodeWidget extends React.Component<GenericNodeWidgetProps, G
 		if(!this.props.node){
 			return;
 		}
-		const texture = this.props.node.texture;
+		let texture = this.props.node.texture as Texture;
 		if(!texture){
-			//this.props.node.texture = new Texture(null, this.props.node.)
-			console.log("no texture exists");
-			return;
+			this.props.node.texture = new Texture(null, Engine.LastCreatedScene)
+			texture = this.props.node.texture;
 		}
         Tools.ReadFile(file, (data) => {
             var blob = new Blob([data], { type: "octet/stream" });
@@ -64,7 +64,7 @@ export class GenericNodeWidget extends React.Component<GenericNodeWidgetProps, G
 		var headers = new Array<JSX.Element>()
 		var inputPorts = new Array<JSX.Element>()
 		var outputPorts = new Array<JSX.Element>()
-		var texture = <div><FileButtonLineComponent label="" onClick={(file) => this.replaceTexture(file)} accept=".jpg, .png, .tga, .dds, .env" /></div>
+		var texture = <div></div>
 		if(this.props.node){
 			// Header labels
 			this.props.node.headerLabels.forEach((h, i)=>{
