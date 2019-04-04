@@ -41,7 +41,7 @@ export class NodeEditor {
             // Inspector._CreateCanvasContainer(parentControl)
             // options.hostElement = parentControl!;//Inspector._CreatePopup("SCENE EXPLORER", "node-editor")!;
 
-            options.hostElement = Inspector._CreatePopup("SCENE EXPLORER", "node-editor")!;
+            options.hostElement = Inspector._CreatePopup("SCENE EXPLORER", "node-editor", 1000, 800)!;
             
         }
         let globalState = new GlobalState();

@@ -251,7 +251,8 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
 
     divStyle = {
         display: "flex",
-        height: "100%"
+        height: "100%",
+        background: "#333333",
     }
 
     render() {
