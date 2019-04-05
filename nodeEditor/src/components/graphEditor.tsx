@@ -130,9 +130,18 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
     }
 
     componentDidMount(){
-        // debugger;
-        // this.props.globalState;
-        (this.refs["test"] as DiagramWidget).setState({document: this.props.globalState.hostDocument})
+        if(this.props.globalState.hostDocument){
+            var widget = (this.refs["test"] as DiagramWidget);
+            widget.setState({document: this.props.globalState.hostDocument})
+            this.props.globalState.hostDocument!.addEventListener("keyup", widget.onKeyUpPointer as any, false);
+        }
+    }
+
+    componentWillUnmount(){
+        if(this.props.globalState.hostDocument){
+            var widget = (this.refs["test"] as DiagramWidget);
+            this.props.globalState.hostDocument!.removeEventListener("keyup", widget.onKeyUpPointer as any, false);
+        }
     }
 
     constructor(props: IGraphEditorProps) {
