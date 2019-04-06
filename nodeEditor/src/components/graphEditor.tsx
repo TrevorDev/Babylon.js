@@ -141,6 +141,8 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
         if(this.props.globalState.hostDocument){
             var widget = (this.refs["test"] as DiagramWidget);
             this.props.globalState.hostDocument!.removeEventListener("keyup", widget.onKeyUpPointer as any, false);
+            console.log("hithere")
+            //this.props.globalState.hostDocument.close();
         }
     }
 

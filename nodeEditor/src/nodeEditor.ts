@@ -53,6 +53,22 @@ export class NodeEditor {
         });
 
         ReactDOM.render(graphEditor, options.hostElement);
+
+        // Close the popup window when the page is refreshed or scene is disposed
+        var popupWindow = (Inspector as any)["node-editor"];
+        if(globalState.nodeMaterial && popupWindow){
+            globalState.nodeMaterial.getScene().onDisposeObservable.addOnce(()=>{
+                if(popupWindow){
+                    popupWindow.close();
+                }
+            })
+            window.onbeforeunload = function(event) {
+                var popupWindow = (Inspector as any)["node-editor"];
+                if(popupWindow){
+                    popupWindow.close();
+                }
+            };
+        }
     }
 }
 
