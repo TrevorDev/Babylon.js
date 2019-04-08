@@ -3,7 +3,8 @@ import {
 	DiagramModel,
 	DefaultNodeModel,
 	//LinkModel,
-	DiagramWidget
+	DiagramWidget,
+    MoveCanvasAction
 } from "storm-react-diagrams";
 
 import * as React from "react";
@@ -58,7 +59,8 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
     public createNodeFromObject(
         options:{
             column:number,
-            nodeMaterialBlock?:NodeMaterialBlock                            
+            nodeMaterialBlock?:NodeMaterialBlock,
+            disableAdditionalNodes?: boolean                            
         }
     ){
         // Update rows/columns
@@ -124,7 +126,7 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
                     localNode.headerLabels.push({text: "Matrix"})
                     var outPort = new GenericPortModel("Matrix", "output");
                     localNode.addPort(outPort)
-
+                    
                     let link = outPort.link(inputPort);
                     this.model.addAll(link);
                 }
@@ -235,35 +237,50 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
             })
         }
 
+        // Zoom out a bit at the start
+        this.model.setZoomLevel(20)
+
         // load model into engine
         this.engine.setDiagramModel(this.model);
+    }
 
-        console.log(this.engine)
+    addBlockFromClass(ObjectClass:typeof NodeMaterialBlock){
+        var block = new ObjectClass(ObjectClass.prototype.getClassName()+"sdfsdf")
+        var localNode = this.createNodeFromObject({column: 0, nodeMaterialBlock: block})
+        var widget = (this.refs["test"] as DiagramWidget);
+       
+        this.forceUpdate()
+
+        // This is needed to fix link offsets when created, (eg. create a fog block)
+        setTimeout(() => {
+            widget.startFiringAction(new MoveCanvasAction(1,0, this.model));
+        }, 500);
+       
     }
 
     addNode(){
-         // Create node for a texture
-         var localNode = this.createNodeFromObject({column: 0})
-         //localNode.headerLabels.push({text: "Texture"})
-        //  if(connection.value){
-        //      localNode.texture = connection.value
-        //  }
-         var outPort = new GenericPortModel("Texture", "output");
-         outPort.getValue = ()=>{
-             return localNode.texture;
-         }
-         localNode.addPort(outPort)
-         localNode.texture = new Texture(null, Engine.LastCreatedScene)
-        //  let link = outPort.link(inputPort);
-        //  this.model.addAll(link);
+        // Create node for a texture
+        var localNode = this.createNodeFromObject({column: 0})
+        //localNode.headerLabels.push({text: "Texture"})
+       //  if(connection.value){
+       //      localNode.texture = connection.value
+       //  }
+        var outPort = new GenericPortModel("Texture", "output");
+        outPort.getValue = ()=>{
+            return localNode.texture;
+        }
+        localNode.addPort(outPort)
+        localNode.texture = new Texture(null, Engine.LastCreatedScene)
+       //  let link = outPort.link(inputPort);
+       //  this.model.addAll(link);
 
 
-        // var node1 = new DefaultNodeModel("Generic", "rgb(0,192,255)");
-        // node1.addOutPort("Out");
-        // node1.setPosition(0, 0);
-        // this.model.addAll(node1)
-        localNode.setPosition(0,0)
-        this.forceUpdate()
+       // var node1 = new DefaultNodeModel("Generic", "rgb(0,192,255)");
+       // node1.addOutPort("Out");
+       // node1.setPosition(0, 0);
+       // this.model.addAll(node1)
+       localNode.setPosition(0,0)
+       this.forceUpdate()
     }
 
     divStyle = {
@@ -284,7 +301,7 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
         var blockMenu = []
         for(var key in this.allBlocks){
             var blockList = (this.allBlocks as any)[key].map((b:any)=>{
-                return  <ButtonLineComponent label={b.prototype.getClassName()} onClick={() => {this.addNode()}} />
+                return  <ButtonLineComponent label={b.prototype.getClassName()} onClick={() => {this.addBlockFromClass(b)}} />
             })
             blockMenu.push(
                 <LineContainerComponent  title={key+" blocks"}>
@@ -305,13 +322,8 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
                         </div>
                     </div>
                 </div>
-                
                 <DiagramWidget ref={"test"} inverseZoom={true} className="srd-demo-canvas" diagramEngine={this.engine} maxNumberPointsPerLink={0} />
             </div>
-        // <div style={this.divStyle}>
-        //     <button onClick={this.addNode}> Add node </button>
-            
-        // </div>
         );
 
     }
