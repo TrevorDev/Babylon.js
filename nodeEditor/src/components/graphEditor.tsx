@@ -13,8 +13,15 @@ import { GenericNodeFactory } from './customDiragramNodes/generic/genericNodeFac
 import { NodeMaterialBlockConnectionPointTypes } from 'babylonjs/Materials/Node/nodeMaterialBlockConnectionPointTypes';
 import { GenericNodeModel } from './customDiragramNodes/generic/genericNodeModel';
 import { GenericPortModel } from './customDiragramNodes/generic/genericPortModel';
-import { NodeMaterialBlock, Texture } from 'babylonjs';
+import { NodeMaterialBlock, Texture, TextureBlock, AlphaTestBlock, FragmentOutputBlock, ImageProcessingBlock, RGBAMergerBlock, RGBASplitterBlock, BonesBlock, InstancesBlock, MorphTargetsBlock, VertexOutputBlock, FogBlock, AddBlock, ClampBlock, MatrixMultiplicationBlock, MultiplyBlock, Vector2TransformBlock, Vector3TransformBlock, Vector4TransformBlock } from 'babylonjs';
 import { Engine } from 'babylonjs/Engines/engine';
+import { LineContainerComponent } from "../../../inspector/src/components/actionTabs/lineContainerComponent"
+import {ActionTabsComponent} from "../../../inspector/src/components/actionTabs/actionTabsComponent"
+import { CheckBoxLineComponent } from '../../../inspector/src/components/actionTabs/lines/checkBoxLineComponent';
+import { TabsComponent } from '../../../inspector/src/components/actionTabs/tabsComponent';
+import { PaneComponent } from '../../../inspector/src/components/actionTabs/paneComponent';
+import { ButtonLineComponent } from '../../../inspector/src/components/actionTabs/lines/buttonLineComponent';
+require("../../../inspector/src/components/actionTabs/actionTabs.scss");
 require("storm-react-diagrams/dist/style.min.css");
 //require("storm-react-diagrams/dist/style.min.css");
 
@@ -141,8 +148,6 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
         if(this.props.globalState.hostDocument){
             var widget = (this.refs["test"] as DiagramWidget);
             this.props.globalState.hostDocument!.removeEventListener("keyup", widget.onKeyUpPointer as any, false);
-            console.log("hithere")
-            //this.props.globalState.hostDocument.close();
         }
     }
 
@@ -257,22 +262,48 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
         // node1.addOutPort("Out");
         // node1.setPosition(0, 0);
         // this.model.addAll(node1)
+        localNode.setPosition(0,0)
         this.forceUpdate()
     }
 
     divStyle = {
         display: "flex",
         height: "100%",
-        background: "#333333",
+        background: "#464646",
+    }
+
+    
+    allBlocks = {
+        Fragment: [AlphaTestBlock, FragmentOutputBlock, ImageProcessingBlock, RGBAMergerBlock, RGBASplitterBlock, TextureBlock],
+        Vertex: [BonesBlock, InstancesBlock, MorphTargetsBlock, VertexOutputBlock],
+        Dual: [FogBlock],
+        Other: [AddBlock, ClampBlock, MatrixMultiplicationBlock, MultiplyBlock, Vector2TransformBlock, Vector3TransformBlock, Vector4TransformBlock],
     }
 
     render() {
-        
+        var blockMenu = []
+        for(var key in this.allBlocks){
+            var blockList = (this.allBlocks as any)[key].map((b:any)=>{
+                return  <ButtonLineComponent label={b.prototype.getClassName()} onClick={() => {this.addNode()}} />
+            })
+            blockMenu.push(
+                <LineContainerComponent  title={key+" blocks"}>
+                    {blockList}
+                </LineContainerComponent>
+            )
+        }
+
         return (
             <div style={this.divStyle}>
-                <div style={{width: "100px", background: "#2c3e50"}}>
-                    <button style={{width: "100%"}} onClick={()=>{this.addNode()}}> Add texture </button><br/>
-                    <button style={{width: "100%"}} onClick={()=>{this.addNode()}}> Add blur </button>
+                <div id="actionTabs" style={{width: "170px", borderRightStyle: "solid", borderColor: "grey", borderWidth: "1px" }} >
+                    <div className="tabs" style={{gridTemplateRows: "0px 1fr"}}>
+                        <div className="labels"/>
+                        <div className="panes">
+                            <div className="pane">
+                                {blockMenu}
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <DiagramWidget ref={"test"} inverseZoom={true} className="srd-demo-canvas" diagramEngine={this.engine} maxNumberPointsPerLink={0} />
