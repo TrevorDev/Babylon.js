@@ -14,7 +14,7 @@ import { GenericNodeFactory } from './customDiragramNodes/generic/genericNodeFac
 import { NodeMaterialBlockConnectionPointTypes } from 'babylonjs/Materials/Node/nodeMaterialBlockConnectionPointTypes';
 import { GenericNodeModel } from './customDiragramNodes/generic/genericNodeModel';
 import { GenericPortModel } from './customDiragramNodes/generic/genericPortModel';
-import { NodeMaterialBlock, Texture, TextureBlock, AlphaTestBlock, FragmentOutputBlock, ImageProcessingBlock, RGBAMergerBlock, RGBASplitterBlock, BonesBlock, InstancesBlock, MorphTargetsBlock, VertexOutputBlock, FogBlock, AddBlock, ClampBlock, MatrixMultiplicationBlock, MultiplyBlock, Vector2TransformBlock, Vector3TransformBlock, Vector4TransformBlock } from 'babylonjs';
+import { NodeMaterialBlock, Texture, TextureBlock, AlphaTestBlock, FragmentOutputBlock, ImageProcessingBlock, RGBAMergerBlock, RGBASplitterBlock, BonesBlock, InstancesBlock, MorphTargetsBlock, VertexOutputBlock, FogBlock, AddBlock, ClampBlock, MatrixMultiplicationBlock, MultiplyBlock, Vector2TransformBlock, Vector3TransformBlock, Vector4TransformBlock, NodeMaterialConnectionPoint } from 'babylonjs';
 import { Engine } from 'babylonjs/Engines/engine';
 import { LineContainerComponent } from "../../../inspector/src/components/actionTabs/lineContainerComponent"
 import {ActionTabsComponent} from "../../../inspector/src/components/actionTabs/actionTabsComponent"
@@ -59,8 +59,7 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
     public createNodeFromObject(
         options:{
             column:number,
-            nodeMaterialBlock?:NodeMaterialBlock,
-            disableAdditionalNodes?: boolean                            
+            nodeMaterialBlock?:NodeMaterialBlock                      
         }
     ){
         // Update rows/columns
@@ -106,29 +105,28 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
                     let link = connectedNode.ports[connection._connectedPoint.name].link(inputPort);
                     this.model.addAll(link);
                     
-                }else if(connection.type == NodeMaterialBlockConnectionPointTypes.Texture){
-                    // Create node for a texture
-                    var localNode = this.createNodeFromObject({column: options.column+1})
-                    //localNode.headerLabels.push({text: "Texture"})
-                    if(connection.value){
-                        localNode.texture = connection.value
+                }else {
+                    // Create value node for the connection
+                    var type = ""
+                    if(connection.type == NodeMaterialBlockConnectionPointTypes.Texture){
+                        type = "Texture"
+                    } else if(connection.type == NodeMaterialBlockConnectionPointTypes.Matrix){
+                        type = "Matrix"
+                    } else if(connection.type & NodeMaterialBlockConnectionPointTypes.Vector3OrColor3){
+                        type = "Vector3"
+                    } else if(connection.type & NodeMaterialBlockConnectionPointTypes.Vector2){
+                        type = "Vector2"
+                    }else if(connection.type & NodeMaterialBlockConnectionPointTypes.Vector3OrColor3OrVector4OrColor4){
+                        type = "Vector4"
                     }
-                    var outPort = new GenericPortModel("Texture", "output");
-                    outPort.getValue = ()=>{
-                        return localNode.texture;
-                    }
-                    localNode.addPort(outPort)
-                    let link = outPort.link(inputPort);
-                    this.model.addAll(link);
-                } else if(connection.type == NodeMaterialBlockConnectionPointTypes.Matrix){
-                    // Create node for a Matrix
-                    var localNode = this.createNodeFromObject({column: options.column+1})
-                    localNode.headerLabels.push({text: "Matrix"})
-                    var outPort = new GenericPortModel("Matrix", "output");
-                    localNode.addPort(outPort)
                     
-                    let link = outPort.link(inputPort);
-                    this.model.addAll(link);
+                    // Create links
+                    var localNode = this.addValueNode(type, options.column+1, connection);
+                    var ports = localNode.getPorts()
+                    for(var key in ports){
+                        let link = (ports[key] as GenericPortModel).link(inputPort);
+                        this.model.addAll(link);
+                    }
                 }
             })
         }
@@ -165,6 +163,7 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
         // setup the diagram model
         this.model = new DiagramModel();
 
+        // Listen to events to connect/disconnect blocks or
         this.model.addListener({
             linksUpdated: (e)=>{
                 if(!e.isCreated){
@@ -244,7 +243,7 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
         this.engine.setDiagramModel(this.model);
     }
 
-    addBlockFromClass(ObjectClass:typeof NodeMaterialBlock){
+    addNodeFromClass(ObjectClass:typeof NodeMaterialBlock){
         var block = new ObjectClass(ObjectClass.prototype.getClassName()+"sdfsdf")
         var localNode = this.createNodeFromObject({column: 0, nodeMaterialBlock: block})
         var widget = (this.refs["test"] as DiagramWidget);
@@ -252,56 +251,58 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
         this.forceUpdate()
 
         // This is needed to fix link offsets when created, (eg. create a fog block)
+        // Todo figure out how to correct this without this
         setTimeout(() => {
             widget.startFiringAction(new MoveCanvasAction(1,0, this.model));
         }, 500);
-       
     }
 
-    addNode(){
-        // Create node for a texture
-        var localNode = this.createNodeFromObject({column: 0})
-        //localNode.headerLabels.push({text: "Texture"})
-       //  if(connection.value){
-       //      localNode.texture = connection.value
-       //  }
-        var outPort = new GenericPortModel("Texture", "output");
-        outPort.getValue = ()=>{
-            return localNode.texture;
+    addValueNode(type: string, column = 0, connection?: NodeMaterialConnectionPoint){
+        var localNode = this.createNodeFromObject({column: column})
+        var outPort = new GenericPortModel(type, "output");
+        if(type == "Texture"){
+            outPort.getValue = ()=>{
+                return localNode.texture;
+            }
+            if(connection && connection.value){
+                localNode.texture = connection.value
+            }else{
+                localNode.texture = new Texture(null, Engine.LastCreatedScene)
+            }
+        }else if(type == "Vector2"){
+
+        }else if(type == "Vector3"){
+
+        }else if(type == "Matrix"){
+
+        }else{
+            console.log("Node type "+type+"is not supported")
         }
         localNode.addPort(outPort)
-        localNode.texture = new Texture(null, Engine.LastCreatedScene)
-       //  let link = outPort.link(inputPort);
-       //  this.model.addAll(link);
+        this.forceUpdate()
 
-
-       // var node1 = new DefaultNodeModel("Generic", "rgb(0,192,255)");
-       // node1.addOutPort("Out");
-       // node1.setPosition(0, 0);
-       // this.model.addAll(node1)
-       localNode.setPosition(0,0)
-       this.forceUpdate()
-    }
-
-    divStyle = {
-        display: "flex",
-        height: "100%",
-        background: "#464646",
+        return localNode;
     }
 
     
+
+    // Block types used to create the menu from
     allBlocks = {
         Fragment: [AlphaTestBlock, FragmentOutputBlock, ImageProcessingBlock, RGBAMergerBlock, RGBASplitterBlock, TextureBlock],
         Vertex: [BonesBlock, InstancesBlock, MorphTargetsBlock, VertexOutputBlock],
         Dual: [FogBlock],
         Other: [AddBlock, ClampBlock, MatrixMultiplicationBlock, MultiplyBlock, Vector2TransformBlock, Vector3TransformBlock, Vector4TransformBlock],
+        Value: ["Texture", "Vector2", "Vector3", "Matrix"],
     }
 
     render() {
+        // Create node menu
         var blockMenu = []
         for(var key in this.allBlocks){
             var blockList = (this.allBlocks as any)[key].map((b:any)=>{
-                return  <ButtonLineComponent label={b.prototype.getClassName()} onClick={() => {this.addBlockFromClass(b)}} />
+                var label = typeof b === "string" ? b : b.prototype.getClassName()
+                var onClick =typeof b === "string" ? () => {this.addValueNode(b)} : () => {this.addNodeFromClass(b)};
+                return  <ButtonLineComponent label={label} onClick={onClick} />
             })
             blockMenu.push(
                 <LineContainerComponent  title={key+" blocks"}>
@@ -311,7 +312,12 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
         }
 
         return (
-            <div style={this.divStyle}>
+            <div style={{
+                display: "flex",
+                height: "100%",
+                background: "#464646",
+            }}>
+                {/* Node creation menu */}
                 <div id="actionTabs" style={{width: "170px", borderRightStyle: "solid", borderColor: "grey", borderWidth: "1px" }} >
                     <div className="tabs" style={{gridTemplateRows: "0px 1fr"}}>
                         <div className="labels"/>
@@ -322,6 +328,8 @@ export class GraphEditor extends React.Component<IGraphEditorProps> {
                         </div>
                     </div>
                 </div>
+                
+                {/* The node graph diagram */}
                 <DiagramWidget ref={"test"} inverseZoom={true} className="srd-demo-canvas" diagramEngine={this.engine} maxNumberPointsPerLink={0} />
             </div>
         );
